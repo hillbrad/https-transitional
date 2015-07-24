@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            
+.hyperlink {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+            
+.link {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+
+#licensing {
+  fill: green;
+}
+
+.link.invisible {
+  stroke-width: 0;
+}
+
+.link.resolved {
+  stroke-dasharray: 0,2 1;
+}
+
+
+circle {
+    fill-opacity: .5;
+}
+
+.resource {
+    fill-opacity: 1;
+}
+
+text {
+    font: 10px sans-serif;
+}
+            
+background {
+    fill-opacity: 0;
+    stroke-width: 0;
+}
+
+        </style>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+    </head>
+    <body>
+
+        <script>
+
+                    function color(state) {
+                        switch (state) {
+                            case "https":
+                                return "#8f8";
+                                break;
+                            case "http":
+                                return "#f88";
+                                break;
+                            case "mixed":
+                                return "#ff8";
+                                break;
+                            case "transitional":
+                                return "#88f";
+                            default:
+                                return "#fff";
+                        }
+                    }
+            
+                    function drawFigure2(targetName, data) {
+                        var targetNode = document.getElementById(targetName);
+                        var jsonData = JSON.parse(document.getElementById(data).textContent);
+
+                        jsonData.resources.forEach( function(rsc) {
+                            if(!rsc.size) { rsc.size = 80; }
+                            rsc.children.forEach( function(child) {
+                                if(!child.size) { child.size = 15; }
+                            });
+                        });
+                        
+                        
+                        var width = targetNode.getBoundingClientRect().width,
+                            height = targetNode.getBoundingClientRect().height;
+
+                        var svg = d3.select(targetNode).append("svg")
+                        .attr("width", width)
+                        .attr("height", height);
+
+                        // Per-type markers, as they don't inherit styles.
+                        svg.append("defs").selectAll("marker")
+                            .data(["http", "https", "transitional"])
+                            .enter().append("marker")
+                            .attr("id", function(d) { return d; })
+                            .attr("viewBox", "0 -5 10 10")
+                            .attr("refX", 25)
+                            .attr("refY", -1.5)
+                            .attr("markerWidth", 8)
+                            .attr("markerHeight", 6)
+                            .attr("orient", "auto")
+                            .append("path")
+                            .attr("d", "M0,-5L10,0L0,5");
+                        
+                        var origin = svg.append("g").selectAll(".node")
+                        .data(jsonData.origins)
+                        .enter().append("g")
+                        .attr("transform", function(d) { return "translate("+ d.x +","+ d.y +")" })
+                        .attr("state", function(d) { return d.state; })
+                        .attr("id", function(d) { return targetName + "_origins_"  + d.name; });
+
+                         origin.append("circle")
+                        .attr("x", 0)
+                        .attr("y", 0)
+                        .attr("r", 80)
+                        .style("fill", function(d) { return color(d.state); })
+                        .style("stroke", function(d) { return d.children ? color(d.state) : "black"; })
+                        .style("stroke-width", 1);
+                        
+                        origin.append("text")
+                        .style("text-anchor", "middle")
+                        .text(function(d) { return d.name; })
+                        .attr("transform", "translate(0,-85)");
+
+                        // insert these after origins, before resources, then add "d" attr later.
+                        var hyperlink = svg.append("g").selectAll("path")
+                        .data(jsonData.links)
+                        .enter().append("path")
+                        .attr("class", "hyperlink")
+                        .attr("marker-end", function(d) { return "url(#" + d.scheme + ")"; });
+                        
+                        var resources = jsonData.resources;
+                        for(var i = 0; i < resources.length; i++) {
+
+                            var originNode = d3.select("#" + targetName + "_origins_" + resources[i].origin).node();
+
+                            var pack = d3.layout.pack()
+                            .padding(30)
+                            .size([150, 150])
+                            .value(function(d) { return d.size; });
+
+                            var g = svg.append("g")
+                            .attr("transform", originNode.attributes.transform.nodeValue);
+
+                            var pnode = g.datum(resources[i]).selectAll(".node")
+                            .data(pack.nodes)
+                            .enter().append("g")
+                            .attr("transform", function(d) { return "translate(" + (d.x - 75) + "," + (d.y - 75) + ")"; });
+
+                            pnode.append("circle")
+                                .attr("r", function(d) { return d.size; })
+                                .attr("id", function(d) { return targetName + "_resources_" + d.id; })
+                                .style("fill", function(d) {
+                                    return d.depth == 0 ? "none" :
+                                        (d.state ? color(d.state) : color(originNode.attributes.state.nodeValue));
+                                })
+                                .style("stroke", "black")
+                                .style("stroke-width", function(d) { return d.depth > 0 ? 1 : 0 })
+                                .attr("class", function(d) { return d.depth > 0 ? "resource" : ""; });
+
+                            pnode.filter(function(d) { return d.depth > 0; }).append("text")
+                                .attr("dy", ".3em")
+                                .style("text-anchor", "middle")
+                                .text(function(d) { return d.name.substring(0, d.r / 3); })
+                        }
+
+                        svg.selectAll(".hyperlink").attr("d", hyperlinkArc);
+
+                        function hyperlinkArc(d) {
+                            var target = d3.select("#" + targetName + "_resources_" + d.toResource).node();
+                            var source = d3.select("#" + targetName + "_resources_" + d.fromResource).node();
+                            var offset = svg.node().getBoundingClientRect();
+                            var tMatrix = target.getScreenCTM();
+                            var sMatrix = source.getScreenCTM();
+                            
+                            var sCoords = getXformedCoords(source.cx.baseVal.value, source.cy.baseVal.value, offset, sMatrix);
+                            var tCoords = getXformedCoords(target.cx.baseVal.value, target.cy.baseVal.value, offset, tMatrix);
+
+                            var dx = tCoords.x - sCoords.x,
+                                dy = tCoords.y - sCoords.y,
+                                dr = Math.sqrt(dx * dx + dy * dy);
+                            return "M" + sCoords.x + "," + sCoords.y + "A" + dr + "," + dr + " 0 0,1 " + tCoords.x + "," + tCoords.y;
+                        };
+                        
+                        function getXformedCoords(x, y, offset, matrix) {
+                            return {
+                                x: (matrix.a * x) + (matrix.c * y) + matrix.e - offset.left,
+                                y: (matrix.b * x) + (matrix.d * y) + matrix.f - offset.top
+                            }
+                        }
+                    }
+        </script>
+
+        
+        <script id="figure2data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
+                {"name": "OriginC", "x": 400, "y": "300", "state": "transitional"},
+                {"name": "OriginD", "x": 100, "y": "100", "state": "https"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"https"},
+                {"fromResource": "1", "toResource":"3", "scheme":"https"},
+                {"fromResource": "1", "toResource":"6", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"http"},
+                {"fromResource": "7", "toResource":"6", "scheme":"http"},
+                {"fromResource": "11", "toResource":"9", "scheme":"http"},
+                {"fromResource": "11", "toResource":"2", "scheme":"https"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "size" : 100,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "11", "size" : 20, "state" : "https"},
+                        {"name" : "HTML", "id" : "1", "size" : 20, "state" : "mixed"},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" }
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 20},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "7", "size" : 20},
+                        {"name" : "JSON", "id" : "8"},
+                        {"name" : "JS",   "id" : "9"}
+                    ]
+                },
+                {
+                    "origin" : "OriginD",
+                    "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <div id="figure2" style="height: 500px"></div>
+        <script>drawFigure2("figure2", "figure2data");</script>
+        
+        <h1>
+            Why isn't HTTPS everywhere yet?
+        </h1>
+        <p>
+            Encryption.  We all like it and want more of it.  Why isn't HTTPS
+            everywhere yet?
+        </p>
+        <h2>
+            Is it certificates?
+        </h2>
+        <p>
+            The first and most commonly cited barrier to HTTPS everywhere is
+            the cost (both time and effort) of
+            obtaining, configuring, presenting and maintaining a valid
+            certificate.  You must find a certificate authority, prove your
+            identity, pay for a certificate, set it up on your server (you
+            probably need to have a dedicated IPv4 address to support old 
+            clients that don't
+            do Server Name Indication) and renew it before it expires.
+        </p>
+        <p>
+            A lot of the proposals for "opportunistic" encryption are targeted
+            at this level of the problem, and amount to: "The NSA is
+            recording all of our traffic, so why don't we just encrypt even if
+            we don't have a certificate?"
+        </p>
+        <p>
+            I appreciate the spirit of this solution, but I have come
+            to believe it is actually targeting the wrong obstacles. First, this
+            flavor of OE solves very few problems because you can never rely on
+            it, even when it appears to succeed.  For users that care, it offers
+            little comfort, and for site operators who want to get to reliable
+            guarantees, it offers no easier path forward. Second, I don't think
+            the certificate problem is actually the biggest challenge blocking
+            HTTPS everywhere anymore.
+        </p>
+        <p>
+            The fine folks over at
+            <a href="https://letsencrypt.org/">Let's Encrypt</a>
+            already realized that the
+            certficate problem is mostly amenable to automation, and that
+            automating the issuance, installation, configuration, deployment
+            and renewal of certificates and TLS on a relatively few of the major
+            servers+platforms can cover a substantial supermajority of the
+            Internet.  This is amazing work, and while there is still much of
+            that race left to be run, I think we can optimistcally call it a
+            solved problem.
+        </p>
+        <p>
+            The SNI + IPv4 issue (mulitple hosts can't share the same IPv4
+            address for clients that don't support Server Name Indication
+            without getting a certificate with all of their names in it) I am
+            confident will naturally resolve itself as those old platforms
+            tail off and IPv6 ramps up.
+        </p>
+        <h2>
+            Now we have a certificate, we can turn on HTTPS, right?
+        </h2>
+        <p>
+            Well, maybe.  But probably not.  If all of the HTML resources you
+            serve have subresources (images, scripts, etc.) loaded from the
+            same host AND you used only relative urls (e.g. "/foo.jpg" instead
+            of "http://example.com/foo.jpg") then you are good to go!  Otherwise
+            things are probably broken for you at your "https://" URLs.
+        </p>
+        <p>
+            <i>Wait, what?  HTTPS is supposed to be good. Why is everything
+            broken?</i>
+        </p>
+        <p>
+            It's broken because you almost certainly have
+            <a href="http://w3.org/TR/mixed-content">Mixed Content</a>
+            in your pages.
+        </p>
+        <h2>What is Mixed Content and why should I care?</h2>
+        <p>
+            Mixed Content is the term that has arisen out of practice
+            for the situation when a document loaded over https includes content
+            loaded over http.
+        </p>
+        <p>
+            Most web browsers block such loads or give
+            negative UI feedback when they occur, and they have been getting
+            more and more strict about it over time.
+        </p>
+        <p>
+            <i>Why do browsers do that? Why can't I as a site operator make that
+            decision?</i>
+        </p>
+        <p>
+            In most of the Web security model, origins (the scheme+host+port
+            tuple of a URL) are authoritative for their own information.  A
+            document loaded from HTTPS can navigate the user to an insecure
+            destination with sensitive data in the GET string or fragment,
+            it can POST or postMessage() to insecure schemes or origins, and
+            it can receive GET, POST or onMessage() from insecure schemes or
+            origins.  So, if we don't have formal information flow controls
+            on the Web, why is Mixed Content Blocking a thing? If I can POST,
+            why can't I XHR?
+        </p>
+        <p>
+            It turns out there is really only one formal security property that
+            browsers try to reliably enforce on documents.  That is a property
+            first formulated as "Tranquility" by Bell and LaPadula in their 1973
+            integrity model. (
+            <a href="https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model">
+            https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model</a>
+            )  In simple terms, the tranquility enforced by web browsers is that
+            a secure docment will not become insecure while you are interacting
+            with it.
+        </p>
+        <p>
+            Among all the complexity and
+            potential pitfalls of Web security, browsers have come to
+            the conclusion that there is only one semi-reliable, usable security
+            indicator: the URL bar and HTTPS lock.  If you type "https://" into
+            the address bar, or at any point check to see if there is a lock
+            icon for the document you are interacting with, the browser has made
+            you a promise (or alternately, the browser is conveying a promise
+            from the site operator which it is unwilling to let it reneg on)
+            that the content is protected from threats involving a
+            hostile network.
+        </p>
+        <p>
+            If your https
+            document were to load a script, preform an XHR or even load an image
+            over http, that promise would be broken.  How broken and what the
+            exact consequences would be
+            might vary widely, but the browser isn't in a position to know, and
+            doesn't want to impose the burden of that subtlety on the user, so
+            they simply block.  This is done not only to protect users who
+            wouldn't otherwise be aware that, e.g., a webmail application which
+            shows https in the address bar but includes script over http isn't
+            safe to use in a coffeeshop in the
+            hacker part of town, but also to highlight the same issue to content
+            authors who might otherwise miss this subtle point.
+        </p>
+        <p>
+            This is a good thing for users, but it puts site operators newly in
+            posession of a certificate in a bit of difficulty when it comes to
+            turning on https.  All of their HTML resources which reference
+            insecure content are going to break - either outright, or by showing
+            a trouble-ticket-generating warning.  <b>This, I assert, is the real
+            cost barrier we must surmount in order to move the rest of the Web
+            to 100% HTTPS.</b>
+        </p>
+        <h2>
+            Fixing Mixed Content
+        </h2>
+        <p>
+            As soon as you have to start to think about Mixed Content, the cost
+            of migrating to HTTPS starts to get real.  Much more so than any
+            kind of server configuration or acquisition of a certificate, this
+            is expensive stuff not well-suited to automation because it often
+            requires understanding all the possible content served by a host,
+            modifying it (conditionally) and (possibly most expensively) testing
+            to verify that everything works.
+        </p>
+        <p>
+            For a complex site, it's not as simple as running s/http/https/g
+            across all of your resources, statically or with a mod_rewrite rule.
+            You might encounter http-schemed resources in many places: static
+            content, dynamic content generated on the server, on the client,
+            stored in databases (on the server or client), retrieved from other
+            third party redirects, etc.
+        </p>
+        <p>
+            A new specification under development, (and already supported by
+            Chrome and Firefox)
+            <a href="http://www.w3.org/TR/upgrade-insecure-requests/">Upgrade
+            Insecure Requests</a>, aims to ease this burden by automatically
+            upgrading http subresource fetches to https, along with same-origin
+            navigations.  This is great if most of your references are to your
+            own domain or domains which you control, but it is less certain when
+            you have extensive external references.  If they are not available
+            over https, things will still fail.
+        </p>
+        <p>
+            And so, until all of their dependencies have upgrade to https, many
+            sites are reluctant to offer any of their own content over https, to
+            avoid presenting users with broken experiences and worrying error
+            messages.
+        </p>
+        <p>
+            This leads to the unfortunate circumstance that the least
+            accountable actors at the end of long dependency chains can hold
+            back progress for everyone upstream, or worse, cyclical dependencies
+            (as certainly exist in the large scale structure of the web) can
+            create deadlocks which prevent upgrades without coordination.
+        </p>
+        <p>
+            To make matters even worse, it is not trivial to even determine if
+            your dependencies are ready!  Once you go HTTPS, errors will
+            just start happening for your users, and you have no obvious way to
+            catch them in advance. (A 'default-src https:' Content Security
+            Policy directive can tell you when things actually broke, but you
+            can't easily compose it with an optimistic upgrade to test without
+            actual breakage.)
+        </p>
+        <p>For modern applications with complex client-side logic,
+            serving large user bases, and using things like Real-Time-Bidding
+            advertising networks, the difficulty of creating a reasonable simulation of
+            traffic and user experience for test purposes is quite real. Just
+            the set of domain names you reference may be emergent runtime
+            behavior with substantial variance over time.
+        </p>
+        <h2>
+            Breaking the deadlock
+        </h2>
+        <p>
+            What we lack is an intermediate state between http and https.
+            Ideally, such a state would have the following properties:
+            <ul>
+                <li>
+                    Allow secure origins which depend on resources you serve to
+                    retrieve them in way which does not violate their secure
+                    tranquility.
+                </li>
+                <li>
+                    Allow detection of dependencies which would violate secure
+                    tranquility / produce mixed content errors without
+                    negatively impacting the user experience.
+                </li>
+                <li>
+                    Do not force resources to make premature or unverified
+                    guarantees of secure tranquility / lack of mixed content.
+                </li>
+                <li>
+                    Be extremely low-cost and low-risk to deploy; ideally
+                    requiring zero content-level changes, only server
+                    configuration updates. (including possibly adding one or
+                    more http headers)
+                </li>
+            </ul>
+        </p>
+    </body>
+</html>
