@@ -894,5 +894,30 @@ text {
 
         </script>
 
+        <p>
+            First, OriginB turns on "https transitional" mode.  This means that is resources are
+            still not available at URLs with an https scheme, but are optimistically available
+            over TLS with the full guarantees, including a valid certificate.  This is essentially
+            zero-cost for OriginB because it makes no new guarantees to users or browsers about
+            the security state or tranquility of its own resources.
+        </p>
+        <p>
+            Now that OriginB's resources are available via "https transitional", OriginA turns on
+            https.  It has an HTML file with an http dependency on the JS file at OriginB.  A
+            browser that knows about "https transitional" can try to initiate a TLS connection
+            to OriginB and ask for the resource with its original http scheme.  If this
+            optimistic upgrade fails, it would be treated as insecure and trigger mixed content
+            blocking, so we haven't reduced the guarantees to users of OriginA.  If it succeeds,
+            all of the standard guarantees required for OriginA to be secure and tranquil are met,
+            and no mixed content warning or blocking would be triggered, even though the reference
+            to the JS file at OriginB still used the http scheme.
+        </p>
+        <p>
+            Now that OriginA has upgraded, OriginC can upgrade, too.  And aftet that, if OriginB
+            is monitoring unenforced mixed content warnings on its transitional resources, it may
+            notice that it no longer has any insecure dependencies and can choose to upgrade, itself.
+            The entire graph can go from insecure to secure without any coordination, where previously
+            it was blocked and required a flag day for all the origins to change simultaneously.
+        </p>
     </body>
 </html>
