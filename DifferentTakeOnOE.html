@@ -48,6 +48,36 @@ text {
     fill: #88f;
 }
 
+.http_to_transitional {
+  animation-duration: 2s;
+  animation-name: http_to_transitional;
+}
+
+.http_to_https {
+  animation-duration: 2s;
+  animation-name: http_to_https;
+}
+
+@keyframes http_to_transitional {
+  from {
+    fill: #f88;
+  }
+
+  to {
+    fill: #88f;
+  }
+}
+
+@keyframes http_to_https {
+  from {
+    fill: #f88;
+  }
+
+  to {
+    fill: #8f8;
+  }
+}
+
 .hyperlink {
     fill: none;
 }
@@ -117,11 +147,11 @@ text {
                         .attr("x", 0)
                         .attr("y", 0)
                         .attr("r", 80)
-                        .attr("class", function(d) { return d.state; });
+                        .attr("class", function(d) { return d.state + " " + d.name; });
 
                         origin.append("text")
                         .style("text-anchor", "middle")
-                        .text(function(d) { return d.state + "://" + d.name; })
+                        .text(function(d) { return (d.state == "transitional" ? "http" : d.state) + "://" + d.name; })
                         .attr("transform", "translate(0,-85)");
 
                         // insert these after origins, before resources, then add "d" attr later.
@@ -133,6 +163,7 @@ text {
                         var hyperlink = svg.append("g").selectAll("path")
                         .data(jsonData.links)
                         .enter().append("path")
+                        .attr("id", function(d) { return targetName + "_hyperlinks_" + d.fromResource + "_to_" + d.toResource })
                         .attr("stroke-dasharray", "5,5")
                         .attr("class", function(d) { return "hyperlink " + (d.scheme ? d.scheme : "") })
                         .attr("marker-end", function(d) { return "url(#" + d.scheme + ")"; });
@@ -162,7 +193,8 @@ text {
                                     var depthClass = d.depth > 0 ? "resource" : "packingGroup";
                                     var stateClass = d.depth == 0 ? "" :
                                         (d.state ? d.state : originNode.attributes.state.value);
-                                    return depthClass + " " + stateClass;
+                                    var originClass = d.depth == 0 ? "" : resources[i].origin;
+                                    return depthClass + " " + stateClass + " " + originClass;
                                 });
 
                             pnode.filter(function(d) { return d.depth > 0; }).append("text")
@@ -752,5 +784,115 @@ text {
                 </li>
             </ul>
         </p>
+            <script id="figure7data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "300", "state": "http"},
+                {"name": "OriginB", "x": 200, "y": "100", "state": "http"},
+                {"name": "OriginC", "x": 100, "y": "300", "state": "http"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"4", "scheme":"http"},
+                {"fromResource": "3", "toResource":"6", "scheme":"http"},
+                {"fromResource": "5", "toResource":"2", "scheme":"http"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20},
+                        {"name" : "JS",   "id" : "2" }
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 20},
+                        {"name" : " JS",   "id" : "4" }
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                     "children" :  [
+                        {"name" : "HTML", "id" : "5", "size" : 20},
+                        {"name" : "JS",   "id" : "6" }
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <h3>Click on the figure below to see how introducing an intermediate
+            state (indicated with blue) with these properties can break an upgrade deadlock cycle.</h3>
+
+        <div id="figure7" style="height: 400px" onclick="animateFigure7()"></div>
+        <script>
+            function h2h2t(d) {
+                return d.replace(/\bhttp\b/, "http_to_transitional");
+            }
+            
+            function h2t2t(d) {
+                return d.replace(/\bhttp_to_transitional\b/, "transitional ");
+            }
+            
+            function h2h2s(d) {
+                return d.replace(/http /, "http_to_https ");
+            }
+            
+            function h2s2s(d) {
+                return d.replace(/http_to_https /, "https ");
+            }
+            
+            function h2s(d) {
+                return d.replace(/http/, "https");
+            }
+            
+            function animateFigure7() {
+            document.getElementById("figure7_origins_OriginB")
+            .firstChild
+            .addEventListener("animationend", step1, false);
+            
+            // step 0
+            d3.selectAll("#figure7 circle.OriginB")
+                .attr("class", function(d) { return h2h2t(d3.select(this).attr("class")) });
+            
+            function step1() {
+                d3.selectAll("#figure7 circle.OriginB")
+                .attr("class", function(d) { return h2t2t(d3.select(this).attr("class")) });
+                
+                document.getElementById("figure7_origins_OriginA")
+                .firstChild
+                .addEventListener("animationend", step2, false);
+                
+                d3.selectAll("#figure7 circle.OriginA")
+                .attr("class", function(d) { return h2h2s(d3.select(this).attr("class")) });
+            }
+            
+            function step2() {
+                d3.selectAll("#figure7 circle.OriginA")
+                .attr("class", function(d) { return h2s2s(d3.select(this).attr("class")) });
+                
+                document.getElementById("figure7_origins_OriginC")
+                .firstChild
+                .addEventListener("animationend", step3, false);
+                
+                d3.selectAll("#figure7 circle.OriginC")
+                .attr("class", function(d) { return h2h2s(d3.select(this).attr("class")) });
+                
+                d3.select("#figure7_hyperlinks_5_to_2")
+                .attr("class", function(d) { return h2s(d3.select(this).attr("class")) });
+            }
+            
+            function step3() {
+                d3.selectAll("#figure7 circle.OriginC")
+                .attr("class", function(d) { return h2s2s(d3.select(this).attr("class")) });
+            }
+            
+            }
+                        
+            drawFigure("figure7", "figure7data");
+
+        </script>
+
     </body>
 </html>
