@@ -971,7 +971,8 @@ text {
             attempted if an https AltSvc was advertised?
         </p>
         <p>
-            Is it possible we don't need anything more than that?  Basically this, with Upgrade-Insecure-Requests
+            Is it possible we don't need anything more than that?  Basically this
+            configuration, with Upgrade-Insecure-Requests
             implied for A, B, and C?
         </p>
             <script id="figure8data" type="application/json">
@@ -1066,12 +1067,12 @@ text {
         <script>drawFigure("figure9", "figure9data");</script>
         <p>
             What we need to unblock a dependency tree for iframes is also
-            <i>optimistic tranquility</i>.  That is, we must be able to attempt
+            <i>optimistic secure tranquility</i>.  That is, we must be able to attempt
             to optimistically load an HTML resource with a TLS upgrade, and
-            enforce tranquility on it, <i>but only in a secure, framed context</i>.
+            enforce tranquility on it, <i>but only from a secure, framed context</i>.
             The key to why this is OK is that a non-upgraded document would already be broken
             when loaded in this way, so we aren't introducing any new breakage
-            or mixed content experiences for users.
+            or mixed content experiences for users of OriginB.
         </p>
     </body>
 </html>
