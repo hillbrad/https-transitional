@@ -3,33 +3,17 @@
     <head>
         <style>
             
-.hyperlink {
-  fill: none;
-  stroke: #666;
-  stroke-width: 1.5px;
-}
-            
-.link {
-  fill: none;
-  stroke: #666;
-  stroke-width: 1.5px;
-}
-
-#licensing {
-  fill: green;
-}
-
-.link.invisible {
-  stroke-width: 0;
-}
-
-.link.resolved {
-  stroke-dasharray: 0,2 1;
-}
-
 
 circle {
     fill-opacity: .5;
+    stroke: black;
+    stroke-width: 1;
+}
+
+circle.packingGroup {
+    fill-opacity: .2;
+    fill: none;
+    stroke: none;
 }
 
 .resource {
@@ -39,37 +23,47 @@ circle {
 text {
     font: 10px sans-serif;
 }
-            
-background {
-    fill-opacity: 0;
-    stroke-width: 0;
+
+.https {
+    fill: #8f8;
+}
+.http {
+    fill: #f88;
+}
+.mixed {
+    fill: #ff8;
+}
+.transitional {
+    fill: #88f;
 }
 
+
+
+.hyperlink {
+    fill: none;
+}
+.hyperlink.http {
+  stroke-width: 1.5px;
+  stroke: #fff;
+}
+
+.hyperlink.https {
+    stroke-width: 1.5px;
+    stroke: #000;
+}
+            
+.hyperlink.underlay {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+            
         </style>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
     </head>
     <body>
 
         <script>
-
-                    function color(state) {
-                        switch (state) {
-                            case "https":
-                                return "#8f8";
-                                break;
-                            case "http":
-                                return "#f88";
-                                break;
-                            case "mixed":
-                                return "#ff8";
-                                break;
-                            case "transitional":
-                                return "#88f";
-                            default:
-                                return "#fff";
-                        }
-                    }
-            
                     function drawFigure2(targetName, data) {
                         var targetNode = document.getElementById(targetName);
                         var jsonData = JSON.parse(document.getElementById(data).textContent);
@@ -114,20 +108,24 @@ background {
                         .attr("x", 0)
                         .attr("y", 0)
                         .attr("r", 80)
-                        .style("fill", function(d) { return color(d.state); })
-                        .style("stroke", function(d) { return d.children ? color(d.state) : "black"; })
-                        .style("stroke-width", 1);
-                        
+                        .attr("class", function(d) { return d.state; });
+
                         origin.append("text")
                         .style("text-anchor", "middle")
                         .text(function(d) { return d.name; })
                         .attr("transform", "translate(0,-85)");
 
                         // insert these after origins, before resources, then add "d" attr later.
+                        var hyperlink_underlay = svg.append("g").selectAll("path")
+                        .data(jsonData.links)
+                        .enter().append("path")
+                        .attr("class", "hyperlink underlay");
+
                         var hyperlink = svg.append("g").selectAll("path")
                         .data(jsonData.links)
                         .enter().append("path")
-                        .attr("class", "hyperlink")
+                        .attr("stroke-dasharray", "5,5")
+                        .attr("class", function(d) { return "hyperlink " + (d.scheme ? d.scheme : "") })
                         .attr("marker-end", function(d) { return "url(#" + d.scheme + ")"; });
                         
                         var resources = jsonData.resources;
@@ -141,7 +139,7 @@ background {
                             .value(function(d) { return d.size; });
 
                             var g = svg.append("g")
-                            .attr("transform", originNode.attributes.transform.nodeValue);
+                            .attr("transform", originNode.attributes.transform.value);
 
                             var pnode = g.datum(resources[i]).selectAll(".node")
                             .data(pack.nodes)
@@ -150,14 +148,13 @@ background {
 
                             pnode.append("circle")
                                 .attr("r", function(d) { return d.size; })
-                                .attr("id", function(d) { return targetName + "_resources_" + d.id; })
-                                .style("fill", function(d) {
-                                    return d.depth == 0 ? "none" :
-                                        (d.state ? color(d.state) : color(originNode.attributes.state.nodeValue));
-                                })
-                                .style("stroke", "black")
-                                .style("stroke-width", function(d) { return d.depth > 0 ? 1 : 0 })
-                                .attr("class", function(d) { return d.depth > 0 ? "resource" : ""; });
+                                .attr("id", function(d) { return targetName + "_resources_" + (d.id ? d.id : "packingGroup"); })
+                                .attr("class", function(d) {
+                                    var depthClass = d.depth > 0 ? "resource" : "packingGroup";
+                                    var stateClass = d.depth == 0 ? "" :
+                                        (d.state ? d.state : originNode.attributes.state.value);
+                                    return depthClass + " " + stateClass;
+                                });
 
                             pnode.filter(function(d) { return d.depth > 0; }).append("text")
                                 .attr("dy", ".3em")
@@ -193,7 +190,7 @@ background {
         </script>
 
         
-        <script id="figure2data" type="application/json">
+        <script id="figure1data" type="application/json">
         {
             "origins" : [
                 {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
@@ -205,7 +202,7 @@ background {
                 {"fromResource": "1", "toResource":"2", "scheme":"https"},
                 {"fromResource": "1", "toResource":"3", "scheme":"https"},
                 {"fromResource": "1", "toResource":"6", "scheme":"http"},
-                {"fromResource": "1", "toResource":"10", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"https"},
                 {"fromResource": "7", "toResource":"6", "scheme":"http"},
                 {"fromResource": "11", "toResource":"9", "scheme":"http"},
                 {"fromResource": "11", "toResource":"2", "scheme":"https"}
@@ -248,9 +245,10 @@ background {
         }
         </script>
         
-        <div id="figure2" style="height: 500px"></div>
-        <script>drawFigure2("figure2", "figure2data");</script>
-        
+        <!--
+        <div id="figure1" style="height: 400px"></div>
+        <script>drawFigure2("figure1", "figure1data");</script>
+        -->
         <h1>
             Why isn't HTTPS everywhere yet?
         </h1>
@@ -306,6 +304,7 @@ background {
             confident will naturally resolve itself as those old platforms
             tail off and IPv6 ramps up.
         </p>
+        
         <h2>
             Now we have a certificate, we can turn on HTTPS, right?
         </h2>
@@ -331,11 +330,122 @@ background {
             for the situation when a document loaded over https includes content
             loaded over http.
         </p>
+
         <p>
-            Most web browsers block such loads or give
-            negative UI feedback when they occur, and they have been getting
-            more and more strict about it over time.
+            Consider the following set of resources, where you are the operator
+            of "Origin A".  Green circles represent resources avialable over
+            both https and http schemes, red circles represent resources only
+            available over http schemes.  Dashed lines represent subresource
+            includes made with an http scheme.  Solid lines represent subresource
+            includes made with an https scheme.  Assume that all links are absolute,
+            not relative.
         </p>
+        <script id="figure2data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "100", "state": "http"},
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"http"},
+                {"fromResource": "1", "toResource":"3", "scheme":"http"},
+                {"fromResource": "1", "toResource":"6", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"http"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "size" : 100,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" }
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 20},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                    "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <div id="figure2" style="height: 400px"></div>
+        <script>drawFigure2("figure2", "figure2data");</script>
+
+        <p>
+            Now let's say you acquire a certificate and turn on https for OriginA.
+            What does the resource graph look like now?
+        </p>
+        
+        <script id="figure3data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"http"},
+                {"fromResource": "1", "toResource":"3", "scheme":"http"},
+                {"fromResource": "1", "toResource":"6", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"http"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "size" : 100,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20, "state": "mixed"},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" }
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 20},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                    "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <div id="figure3" style="height: 400px"></div>
+        <script>drawFigure2("figure3", "figure3data");</script>
+        
+        <p>
+            If you haven't updated absolute links in the HTML document, it will
+            still be attempting to load all of its resources with an http scheme.
+            Most web browsers block such loads or give negative UI feedback when
+            they occur, and they have been getting more and more strict about it
+            over time.  The HTML resource at OriginA will be broken because
+            attempts to load the three JS resources it depends on will be blocked,
+            and it will be marked with a mixed content warning for the JPG, even
+            if we didn't have the JS resources.
+        </p>
+        
         <p>
             <i>Why do browsers do that? Why can't I as a site operator make that
             decision?</i>
