@@ -2,8 +2,19 @@
 <html>
     <head>
         <style>
+body {
+    font-family: Roboto, sans-serif;
+    background: #fff;
+}
             
+h1, h2 {
+    font-weight: 100;
+}
 
+h3 {
+    font-weight: 400;
+}
+            
 circle {
     fill-opacity: .5;
     stroke: black;
@@ -37,8 +48,6 @@ text {
     fill: #88f;
 }
 
-
-
 .hyperlink {
     fill: none;
 }
@@ -51,20 +60,20 @@ text {
     stroke-width: 1.5px;
     stroke: #000;
 }
-            
+
 .hyperlink.underlay {
   fill: none;
   stroke: #000;
   stroke-width: 1.5px;
 }
-            
+
         </style>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
     </head>
     <body>
 
         <script>
-                    function drawFigure2(targetName, data) {
+                    function drawFigure(targetName, data) {
                         var targetNode = document.getElementById(targetName);
                         var jsonData = JSON.parse(document.getElementById(data).textContent);
 
@@ -247,7 +256,7 @@ text {
         
         <!--
         <div id="figure1" style="height: 400px"></div>
-        <script>drawFigure2("figure1", "figure1data");</script>
+        <script>drawFigure("figure1", "figure1data");</script>
         -->
         <h1>
             Why isn't HTTPS everywhere yet?
@@ -383,7 +392,7 @@ text {
         </script>
         
         <div id="figure2" style="height: 400px"></div>
-        <script>drawFigure2("figure2", "figure2data");</script>
+        <script>drawFigure("figure2", "figure2data");</script>
 
         <p>
             Now let's say you acquire a certificate and turn on https for OriginA.
@@ -433,7 +442,7 @@ text {
         </script>
         
         <div id="figure3" style="height: 400px"></div>
-        <script>drawFigure2("figure3", "figure3data");</script>
+        <script>drawFigure("figure3", "figure3data");</script>
         
         <p>
             If you haven't updated absolute links in the HTML document, it will
@@ -533,16 +542,123 @@ text {
             <a href="http://www.w3.org/TR/upgrade-insecure-requests/">Upgrade
             Insecure Requests</a>, aims to ease this burden by automatically
             upgrading http subresource fetches to https, along with same-origin
-            navigations.  This is great if most of your references are to your
-            own domain or domains which you control, but it is less certain when
-            you have extensive external references.  If they are not available
-            over https, things will still fail.
+            navigations.
         </p>
+        
+        <script id="figure4data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"http"},
+                {"fromResource": "1", "toResource":"3", "scheme":"http"},
+                {"fromResource": "1", "toResource":"6", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"http"},
+                {"fromResource": "11", "toResource":"2", "scheme":"http"},
+                {"fromResource": "11", "toResource":"10", "scheme":"http"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "size" : 100,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20, "state": "mixed"},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" },
+                        {"name" : "HTML", "id" : "11", "size" : 20, "state" : "mixed"}
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 20},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                    "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
+            ]
+        }
+        </script>
+
+        <script id="figure5data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"https"},
+                {"fromResource": "1", "toResource":"3", "scheme":"https"},
+                {"fromResource": "1", "toResource":"6", "scheme":"https"},
+                {"fromResource": "1", "toResource":"10", "scheme":"https"},
+                {"fromResource": "11", "toResource":"2", "scheme":"https"},
+                {"fromResource": "11", "toResource":"10", "scheme":"https"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "size" : 100,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20, "state": "mixed"},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" },
+                        {"name" : "HTML", "id" : "11", "size" : 20}
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 20},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                    "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <table>
+            <tr>
+                <th>Before</th>
+                <th>After Upgrade-Insecure-Requests</th>
+            </tr>
+            <tr>
+                <td><div id="figure4" style="height: 400px; width: 500px"></div></td>
+                <td><div id="figure5" style="height: 400px; width: 500px"></div></td>
+            </tr>
+        </table>
+        <script>drawFigure("figure4", "figure4data");</script>
+        <script>drawFigure("figure5", "figure5data");</script>
+        
+        
         <p>
-            And so, until all of their dependencies have upgrade to https, many
-            sites are reluctant to offer any of their own content over https, to
-            avoid presenting users with broken experiences and worrying error
-            messages.
+            We see the impact here: One of the HTML resources on OriginA is now
+            free of mixed content because all of its links have been transparently
+            upgraded and all remote dependencies are available over https.
+            However, we still have one broken resource because the JS dependency
+            from OriginB is still not available over https.
+            This illustrates why, until all of their dependencies have upgraded
+            to https, many sites are reluctant to offer any of their own content
+            over https, to avoid presenting users with broken experiences and
+            worrying error messages.
         </p>
         <p>
             This leads to the unfortunate circumstance that the least
@@ -551,6 +667,46 @@ text {
             (as certainly exist in the large scale structure of the web) can
             create deadlocks which prevent upgrades without coordination.
         </p>
+        <script id="figure6data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "300", "state": "http"},
+                {"name": "OriginB", "x": 200, "y": "100", "state": "http"},
+                {"name": "OriginC", "x": 100, "y": "300", "state": "http"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"4", "scheme":"http"},
+                {"fromResource": "3", "toResource":"6", "scheme":"http"},
+                {"fromResource": "5", "toResource":"2", "scheme":"http"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20},
+                        {"name" : "JS",   "id" : "2" }
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 20},
+                        {"name" : " JS",   "id" : "4" }
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                     "children" :  [
+                        {"name" : "HTML", "id" : "5", "size" : 20},
+                        {"name" : "JS",   "id" : "6" }
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <div id="figure6" style="height: 400px"></div>
+        <script>drawFigure("figure6", "figure6data");</script>
         <p>
             To make matters even worse, it is not trivial to even determine if
             your dependencies are ready!  Once you go HTTPS, errors will
