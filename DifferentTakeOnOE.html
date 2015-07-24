@@ -1023,7 +1023,7 @@ text {
         <div id="figure8" style="height: 400px"></div>
         <script>drawFigure("figure8", "figure8data");</script>
 
-        <h2>Enter the &lt;iframe&gt;</h2>
+        <h3>Enter the &lt;iframe&gt;</h3>
         <p>
             One of the problems with simply not offering HTML resources over
             https is when there are HTML to HTML dependencies in the form of
@@ -1068,7 +1068,10 @@ text {
             What we need to unblock a dependency tree for iframes is also
             <i>optimistic tranquility</i>.  That is, we must be able to attempt
             to optimistically load an HTML resource with a TLS upgrade, and
-            enforce tranquility on it, but only in a framed context.
+            enforce tranquility on it, <i>but only in a secure, framed context</i>.
+            The key to why this is OK is that a non-upgraded document would already be broken
+            when loaded in this way, so we aren't introducing any new breakage
+            or mixed content experiences for users.
         </p>
     </body>
 </html>
