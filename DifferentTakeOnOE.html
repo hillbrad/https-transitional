@@ -8,11 +8,11 @@ body {
 }
             
 h1, h2 {
-    font-weight: 100;
+    font-weight: 600;
 }
 
 h3 {
-    font-weight: 400;
+    font-weight: 600;
 }
             
 circle {
@@ -505,10 +505,9 @@ text {
         <p>
             It turns out there is  one formal security property that
             browsers try to enforce on documents.  That is a property
-            first formulated as <i>"Tranquility"</i> by Bell and LaPadula in their 1973
-            integrity model. (
+            first formulated as <i>"Tranquility"</i> by 
             <a href="https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model">
-            https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model</a>
+            Bell and LaPadula in their 1973 integrity model.</a>
             )  In simple terms, the tranquility enforced by web browsers is that
             a secure docment will not become insecure while you are interacting
             with it.
@@ -758,16 +757,11 @@ text {
         <p>
             What we lack is an intermediate state between http and https.
             Ideally, such a state would have the following properties:
-            <ul>
+            <ol>
                 <li>
                     Allow secure origins which depend on resources you serve to
                     retrieve them in way which does not violate their secure
                     tranquility.
-                </li>
-                <li>
-                    Allow detection of dependencies which would violate secure
-                    tranquility / produce mixed content errors without
-                    negatively impacting the user experience.
                 </li>
                 <li>
                     Do not force resources to make premature or unverified
@@ -779,7 +773,12 @@ text {
                     configuration updates. (including possibly adding one or
                     more http headers)
                 </li>
-            </ul>
+                <li>
+                    Allow detection of dependencies which would violate secure
+                    tranquility / produce mixed content errors without
+                    negatively impacting the user experience.
+                </li>
+            </ol>
         </p>
             <script id="figure7data" type="application/json">
         {
@@ -858,6 +857,10 @@ text {
             .addEventListener("animationend", step1, false);
             
             // step 0
+            document.getElementById("figure7_origins_OriginB")
+                .lastChild
+                .textContent = "http[s]://OriginB";
+                
             d3.selectAll("#figure7 circle.OriginB")
                 .attr("class", function(d) { return h2h2t(d3.select(this).attr("class")) });
             
@@ -932,6 +935,43 @@ text {
             transitional mode, it has unblocked upgrades for A and B, without creating any negative
             user experiences for its own users due to mixed content from D.  Without the transitional
             state, none of these sites could have upgraded.
+        </p>
+    
+        <p>
+            The interesting bit here is the link from OriginA's HTML resource to OriginB's JS resource.
+            It needs to satisfy all the properties of TLS - but whether it remains an http scheme that
+            is transparently upgraded during the fetch from OriginB, or whether it is upgraded at OriginA
+            before a fetch is even attempted depends on how this transitional state might be implemented.
+        </p>
+    
+        <h2>
+            How could we introduce this state?
+        </h2>
+        <p>
+            A first approxmiation, just to break resource dependency deadlocks without introducing documents
+            with mixed content into the world, would be to enable https
+            with a server filter that returns a 404 whenever it would otherwise return a Content-Type of text/html.
+            In fact, it's probably a surprisingly good approximation, modulo some edge cases involving
+            CORS. Of the four properties we are interested in, this even gets us a pretty good take on three of them.
+        <p>
+            What is missing is the 4th property - the ability to detect the state of your own dependencies so
+            you can know when it's OK to flip the "real https" switch.  What if browsers could do
+            Content-Security-Policy-Report-Only with "upgrade-insecure-requests" for http documents?
+            <ol>
+                <li>attempt to upgrade</li>
+                <li>if upgrade fails</li>
+                <ol>
+                    <li>fall back to http fetch</li>
+                    <li>fire a report</li>
+                </ol>
+            </ol>
+            This would introduce considerable latency for http pages employing
+            it, as many of the upgrades would fail and they would have to block on those failures before retrying
+            with http.  Perhaps HTTP/2 Alternative Services could be employed, and the upgrade would only be
+            attempted if an https AltSvc was advertised?
+        </p>
+        <p>
+            Is it possible we don't need anything more than that?
         </p>
     </body>
 </html>
