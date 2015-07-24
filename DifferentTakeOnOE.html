@@ -374,7 +374,7 @@ text {
 
         <p>
             Consider the following set of resources, where you are the operator
-            of "Origin A".  Green circles represent resources avialable over
+            of "OriginA".  Green circles represent resources avialable over
             both https and http schemes, red circles represent resources only
             available over http schemes.  Dashed lines represent subresource
             includes made with an http scheme.  Solid lines represent subresource
@@ -492,20 +492,20 @@ text {
             Why can't I as a site operator make that decision?
         </h3>
         <p>
-            In most of the Web security model, origins (the scheme+host+port
+            In most of the Web security model, Origins (the scheme+host+port
             tuple of a URL) are authoritative for their own information.  A
             document loaded from HTTPS can navigate the user to an insecure
             destination with sensitive data in the GET string or fragment,
             it can POST or postMessage() to insecure schemes or origins, and
-            it can receive GET, POST or onMessage() from insecure schemes or
-            origins.  So, if we don't have formal information flow controls
+            an https resource can receive GET, POST or onMessage() from documents
+            loaded over http. So, if we don't have formal information flow controls
             on the Web, why is Mixed Content Blocking a thing? If I can POST,
             why can't I XHR?
         </p>
         <p>
-            It turns out there is really only one formal security property that
-            browsers try to reliably enforce on documents.  That is a property
-            first formulated as "Tranquility" by Bell and LaPadula in their 1973
+            It turns out there is  one formal security property that
+            browsers try to enforce on documents.  That is a property
+            first formulated as <i>"Tranquility"</i> by Bell and LaPadula in their 1973
             integrity model. (
             <a href="https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model">
             https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model</a>
@@ -516,18 +516,17 @@ text {
         <p>
             Among all the complexity and
             potential pitfalls of Web security, browsers have come to
-            the conclusion that there is only one semi-reliable, usable security
+            the conclusion that there is only one semi-reliable and usable security
             indicator: the URL bar and HTTPS lock.  If you type "https://" into
             the address bar, or at any point check to see if there is a lock
             icon for the document you are interacting with, the browser has made
-            you a promise (or alternately, the browser is conveying a promise
+            you a promise that the content is protected from threats involving a
+            hostile network. (or alternately, the browser is conveying a promise
             from the site operator which it is unwilling to let it reneg on)
-            that the content is protected from threats involving a
-            hostile network.
         </p>
         <p>
             If your https
-            document were to load a script, preform an XHR or even load an image
+            document were to load a script, preform a fetch or even load an image
             over http, that promise would be broken.  How broken and what the
             exact consequences would be
             might vary widely, but the browser isn't in a position to know, and
@@ -537,14 +536,15 @@ text {
             shows https in the address bar but includes script over http isn't
             safe to use in a coffeeshop in the
             hacker part of town, but also to highlight the same issue to content
-            authors who might otherwise miss this subtle point.
+            authors who might themselves otherwise miss this subtle point.
         </p>
         <p>
             This is a good thing for users, but it puts site operators newly in
             posession of a certificate in a bit of difficulty when it comes to
             turning on https.  All of their HTML resources which reference
-            insecure content are going to break - either outright, or by showing
-            a trouble-ticket-generating warning.  <b>This, I assert, is the real
+            insecure content are going to break outright or alarm some population
+            of users, either by showing a warning or simply not showing the lock
+            they expect for https.  <b>This dependency problem, I assert, is the real
             cost barrier we must surmount in order to move the rest of the Web
             to 100% HTTPS.</b>
         </p>
@@ -552,17 +552,17 @@ text {
             Fixing Mixed Content
         </h2>
         <p>
-            As soon as you have to start to think about Mixed Content, the cost
+            As soon as you have to fix Mixed Content, the cost
             of migrating to HTTPS starts to get real.  Much more so than any
-            kind of server configuration or acquisition of a certificate, this
-            is expensive stuff not well-suited to automation because it often
+            kind of server configuration or acquisition of a certificate, removing
+            mixed content is expensive and not always well-suited to automation because it often
             requires understanding all the possible content served by a host,
             modifying it (conditionally) and (possibly most expensively) testing
             to verify that everything works.
         </p>
         <p>
             For a complex site, it's not as simple as running s/http/https/g
-            across all of your resources, statically or with a mod_rewrite rule.
+            across all of your resources, on disk or with a mod_rewrite rule.
             You might encounter http-schemed resources in many places: static
             content, dynamic content generated on the server, on the client,
             stored in databases (on the server or client), retrieved from other
@@ -682,9 +682,10 @@ text {
         
         
         <p>
-            We see the impact here: One of the HTML resources on OriginA is now
-            free of mixed content because all of its links have been transparently
-            upgraded and all remote dependencies are available over https.
+            Upgrade-Insecure-Resources has helped OriginA here.
+            One of its HTML resources is now
+            free of mixed content because all of the link schemes have been transparently
+            upgraded and all its remote dependencies are available over https.
             However, we still have one broken resource because the JS dependency
             from OriginB is still not available over https.
             This illustrates why, until all of their dependencies have upgraded
@@ -699,6 +700,7 @@ text {
             (as certainly exist in the large scale structure of the web) can
             create deadlocks which totally prevent upgrades without coordination.
         </p>
+        <h3>None of these sites can turn on https</h3>
         <script id="figure6data" type="application/json">
         {
             "origins" : [
@@ -789,11 +791,13 @@ text {
             "origins" : [
                 {"name": "OriginA", "x": 300, "y": "300", "state": "http"},
                 {"name": "OriginB", "x": 200, "y": "100", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "300", "state": "http"}
+                {"name": "OriginC", "x": 100, "y": "300", "state": "http"},
+                {"name": "OriginD", "x": 400, "y": "100", "state": "http"}
             ],
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"http"},
                 {"fromResource": "3", "toResource":"6", "scheme":"http"},
+                {"fromResource": "3", "toResource":"7", "scheme":"http"},
                 {"fromResource": "5", "toResource":"2", "scheme":"http"}
             ],
             "resources": [
@@ -816,6 +820,12 @@ text {
                      "children" :  [
                         {"name" : "HTML", "id" : "5", "size" : 20},
                         {"name" : "JS",   "id" : "6" }
+                    ]
+                },
+                {
+                    "origin" : "OriginD",
+                     "children" :  [
+                        {"name" : "JS",   "id" : "7" }
                     ]
                 }
             ]
@@ -864,6 +874,10 @@ text {
                 .firstChild
                 .addEventListener("animationend", step2, false);
                 
+                document.getElementById("figure7_origins_OriginA")
+                .lastChild
+                .textContent = "https://OriginA";
+                
                 d3.selectAll("#figure7 circle.OriginA")
                 .attr("class", function(d) { return h2h2s(d3.select(this).attr("class")) });
             }
@@ -876,6 +890,10 @@ text {
                 .firstChild
                 .addEventListener("animationend", step3, false);
                 
+                document.getElementById("figure7_origins_OriginC")
+                .lastChild
+                .textContent = "https://OriginC";
+                
                 d3.selectAll("#figure7 circle.OriginC")
                 .attr("class", function(d) { return h2h2s(d3.select(this).attr("class")) });
                 
@@ -886,10 +904,11 @@ text {
             function step3() {
                 d3.selectAll("#figure7 circle.OriginC")
                 .attr("class", function(d) { return h2s2s(d3.select(this).attr("class")) });
+                // TODO reset figure?
+            }
+                
             }
             
-            }
-                        
             drawFigure("figure7", "figure7data");
 
         </script>
@@ -913,11 +932,11 @@ text {
             to the JS file at OriginB still used the http scheme.
         </p>
         <p>
-            Now that OriginA has upgraded, OriginC can upgrade, too.  And aftet that, if OriginB
-            is monitoring unenforced mixed content warnings on its transitional resources, it may
-            notice that it no longer has any insecure dependencies and can choose to upgrade, itself.
-            The entire graph can go from insecure to secure without any coordination, where previously
-            it was blocked and required a flag day for all the origins to change simultaneously.
+            Now that OriginA has upgraded, OriginC can upgrade, too.  OriginB still has a dependency
+            to OriginD which is only  http, so it can't yet go to https, but by turning on
+            transitional mode, it has unblocked upgrades for A and B, without creating any negative
+            user experiences for its own users due to mixed content from D.  Without the transitional
+            state, none of these sites could have upgraded.
         </p>
     </body>
 </html>
