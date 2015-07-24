@@ -971,7 +971,56 @@ text {
             attempted if an https AltSvc was advertised?
         </p>
         <p>
-            Is it possible we don't need anything more than that?
+            Is it possible we don't need anything more than that?  Basically this, with Upgrade-Insecure-Requests
+            implied for A, B, and C?
         </p>
+            <script id="figure8data" type="application/json">
+        {
+            "origins" : [
+                {"name": "OriginA", "x": 300, "y": "300", "state": "https"},
+                {"name": "OriginB", "x": 200, "y": "100", "state": "https"},
+                {"name": "OriginC", "x": 100, "y": "300", "state": "https"},
+                {"name": "OriginD", "x": 400, "y": "100", "state": "http"}
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"4", "scheme":"https"},
+                {"fromResource": "3", "toResource":"6", "scheme":"http"},
+                {"fromResource": "3", "toResource":"7", "scheme":"http"},
+                {"fromResource": "5", "toResource":"2", "scheme":"https"}
+            ],
+            "resources": [
+                {
+                    "origin" : "OriginA",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 20},
+                        {"name" : "JS",   "id" : "2" }
+                    ]
+                },
+                {
+                    "origin" : "OriginB",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 20, "state" : "http"},
+                        {"name" : " JS",   "id" : "4", "state" : "https"}
+                    ]
+                },
+                {
+                    "origin" : "OriginC",
+                     "children" :  [
+                        {"name" : "HTML", "id" : "5", "size" : 20},
+                        {"name" : "JS",   "id" : "6" }
+                    ]
+                },
+                {
+                    "origin" : "OriginD",
+                     "children" :  [
+                        {"name" : "JS",   "id" : "7" }
+                    ]
+                }
+            ]
+        }
+        </script>
+        
+        <div id="figure8" style="height: 400px"></div>
+        <script>drawFigure("figure8", "figure8data");</script>
     </body>
 </html>
