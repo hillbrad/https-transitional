@@ -32,7 +32,7 @@ circle.packingGroup {
 }
 
 text {
-    font: 10px sans-serif;
+    font: 12px sans-serif;
 }
 
 .https {
@@ -121,7 +121,7 @@ text {
 
                         origin.append("text")
                         .style("text-anchor", "middle")
-                        .text(function(d) { return d.name; })
+                        .text(function(d) { return d.state + "://" + d.name; })
                         .attr("transform", "translate(0,-85)");
 
                         // insert these after origins, before resources, then add "d" attr later.
@@ -455,10 +455,10 @@ text {
             if we didn't have the JS resources.
         </p>
         
-        <p>
-            <i>Why do browsers do that? Why can't I as a site operator make that
-            decision?</i>
-        </p>
+        <h3>
+            Why do browsers block mixed content loads?
+            Why can't I as a site operator make that decision?
+        </h3>
         <p>
             In most of the Web security model, origins (the scheme+host+port
             tuple of a URL) are authoritative for their own information.  A
@@ -663,9 +663,9 @@ text {
         <p>
             This leads to the unfortunate circumstance that the least
             accountable actors at the end of long dependency chains can hold
-            back progress for everyone upstream, or worse, cyclical dependencies
+            back progress for everyone upstream. Cyclical dependencies
             (as certainly exist in the large scale structure of the web) can
-            create deadlocks which prevent upgrades without coordination.
+            create deadlocks which totally prevent upgrades without coordination.
         </p>
         <script id="figure6data" type="application/json">
         {
@@ -711,7 +711,7 @@ text {
             To make matters even worse, it is not trivial to even determine if
             your dependencies are ready!  Once you go HTTPS, errors will
             just start happening for your users, and you have no obvious way to
-            catch them in advance. (A 'default-src https:' Content Security
+            catch them in advance. (A "<tt>default-src https:</tt>" Content Security
             Policy directive can tell you when things actually broke, but you
             can't easily compose it with an optimistic upgrade to test without
             actual breakage.)
