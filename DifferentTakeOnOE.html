@@ -94,7 +94,10 @@ text {
 .hyperlink.underlay {
   fill: none;
   stroke: #000;
-  stroke-width: 1.5px;
+  /* setting the underlay stroke slightly less than the overlay reduces
+    anti-aliasing artifacts with the dashed line but introduces some
+    jaggies to solid lines.  no way to really win here.*/
+  stroke-width: 1.2px;
 }
 
         </style>
@@ -107,14 +110,15 @@ text {
                         var targetNode = document.getElementById(targetName);
                         var jsonData = JSON.parse(document.getElementById(data).textContent);
 
-                        jsonData.resources.forEach( function(rsc) {
+                        // set default sizes for resoruces for packing if not
+                        // explicitly set: container diameter = 80, item = 15
+                        jsonData.origins.forEach( function(rsc) {
                             if(!rsc.size) { rsc.size = 80; }
                             rsc.children.forEach( function(child) {
                                 if(!child.size) { child.size = 15; }
                             });
                         });
-                        
-                        
+
                         var width = targetNode.getBoundingClientRect().width,
                             height = targetNode.getBoundingClientRect().height;
 
@@ -128,33 +132,51 @@ text {
                             .enter().append("marker")
                             .attr("id", function(d) { return d; })
                             .attr("viewBox", "0 -5 10 10")
-                            .attr("refX", 25)
+                            // TODO can we adjust based on target radius?
+                            .attr("refX", 26)
                             .attr("refY", -1.5)
                             .attr("markerWidth", 8)
                             .attr("markerHeight", 6)
                             .attr("orient", "auto")
                             .append("path")
                             .attr("d", "M0,-5L10,0L0,5");
-                        
+
+                        // build origin containers and layout first
                         var origin = svg.append("g").selectAll(".node")
                         .data(jsonData.origins)
                         .enter().append("g")
-                        .attr("transform", function(d) { return "translate("+ d.x +","+ d.y +")" })
-                        .attr("state", function(d) { return d.state; })
-                        .attr("id", function(d) { return targetName + "_origins_"  + d.name; });
+                        .attr("transform", function(d) {
+                            return "translate("+ d.x +","+ d.y +")"
+                        })
+                        .attr("state", function(d) {
+                            return d.state;
+                        })
+                        .attr("id", function(d) {
+                            return targetName + "_origins_"  + d.name;
+                        });
 
                          origin.append("circle")
                         .attr("x", 0)
                         .attr("y", 0)
-                        .attr("r", 80)
+                        .attr("r", function(d) { return d.size; })
                         .attr("class", function(d) { return d.state + " " + d.name; });
 
                         origin.append("text")
                         .style("text-anchor", "middle")
-                        .text(function(d) { return (d.state == "transitional" ? "http" : d.state) + "://" + d.name; })
-                        .attr("transform", "translate(0,-85)");
+                        .text(function(d) {
+                            return (d.state == "transitional" ? "http" : d.state)
+                                + "://" + d.name;
+                        })
+                        .attr("transform", function(d) {
+                            return "translate(0," + -(d.size + 5) + ")";
+                        });
 
-                        // insert these after origins, before resources, then add "d" attr later.
+                        // insert hyperlinks after origins, before resources
+                        // draw two paths - an underlay and an identical path
+                        // on top, which allows us to create either dashed
+                        // or solid patterns with just CSS (set color of
+                        // overlay and underlay the same for a solid line,
+                        // or different colors for a dashed line)
                         var hyperlink_underlay = svg.append("g").selectAll("path")
                         .data(jsonData.links)
                         .enter().append("path")
@@ -163,15 +185,34 @@ text {
                         var hyperlink = svg.append("g").selectAll("path")
                         .data(jsonData.links)
                         .enter().append("path")
-                        .attr("id", function(d) { return targetName + "_hyperlinks_" + d.fromResource + "_to_" + d.toResource })
+                        .attr("id", function(d) {
+                            return targetName + "_hyperlinks_" +
+                                d.fromResource + "_to_" + d.toResource;
+                        })
                         .attr("stroke-dasharray", "5,5")
-                        .attr("class", function(d) { return "hyperlink " + (d.scheme ? d.scheme : "") })
-                        .attr("marker-end", function(d) { return "url(#" + d.scheme + ")"; });
+                        .attr("class", function(d) {
+                            return "hyperlink " + (d.scheme ? d.scheme : "")
+                        })
+                        .attr("marker-end", function(d) {
+                            return "url(#" + d.scheme + ")";
+                        });
+                        // we need to insert the links before the resources so
+                        // they are underneath, but we don't know the layout
+                        // yet of the nodes they're connecting, so do the
+                        // resource layout then call hyperlinkArc() to
+                        // draw the actual connections.
+
+                        // TODO - can we do this in a more literate style
+                        // using d3 selectors and third normal form for the
+                        // data structure?
                         
-                        var resources = jsonData.resources;
+                        // layout the resources with circle packing inside
+                        // their origin.
+                        var resources = jsonData.origins;
                         for(var i = 0; i < resources.length; i++) {
 
-                            var originNode = d3.select("#" + targetName + "_origins_" + resources[i].origin).node();
+                            var originNode = d3.select("#" + targetName + "_origins_" + resources[i].name)
+                                                .node();
 
                             var pack = d3.layout.pack()
                             .padding(30)
@@ -184,16 +225,21 @@ text {
                             var pnode = g.datum(resources[i]).selectAll(".node")
                             .data(pack.nodes)
                             .enter().append("g")
-                            .attr("transform", function(d) { return "translate(" + (d.x - 75) + "," + (d.y - 75) + ")"; });
+                            .attr("transform", function(d) {
+                                return "translate(" + (d.x - 75) + "," + (d.y - 75) + ")";
+                            });
 
                             pnode.append("circle")
                                 .attr("r", function(d) { return d.size; })
-                                .attr("id", function(d) { return targetName + "_resources_" + (d.id ? d.id : "packingGroup"); })
+                                .attr("id", function(d) {
+                                    return targetName + "_resources_" +
+                                        (d.id ? d.id : "packingGroup");
+                                })
                                 .attr("class", function(d) {
                                     var depthClass = d.depth > 0 ? "resource" : "packingGroup";
                                     var stateClass = d.depth == 0 ? "" :
                                         (d.state ? d.state : originNode.attributes.state.value);
-                                    var originClass = d.depth == 0 ? "" : resources[i].origin;
+                                    var originClass = d.depth == 0 ? "" : resources[i].name;
                                     return depthClass + " " + stateClass + " " + originClass;
                                 });
 
@@ -206,90 +252,46 @@ text {
                         svg.selectAll(".hyperlink").attr("d", hyperlinkArc);
 
                         function hyperlinkArc(d) {
-                            var target = d3.select("#" + targetName + "_resources_" + d.toResource).node();
-                            var source = d3.select("#" + targetName + "_resources_" + d.fromResource).node();
+                            var target = d3.select("#" + targetName + "_resources_" + d.toResource)
+                                        .node();
+                            var source = d3.select("#" + targetName + "_resources_" + d.fromResource)
+                                        .node();
+
+                            // This is the magic to find our target node position
+                            // and still draw links at the right render depth.
+                            // (not as childern inheriting the <g> transform,
+                            // which would put them on top)  Get the bounding
+                            // rectangle and the coordinate transformation matrix
+                            // and apply these to find the "true" center of each
+                            // recource circle.
                             var offset = svg.node().getBoundingClientRect();
                             var tMatrix = target.getScreenCTM();
                             var sMatrix = source.getScreenCTM();
                             
-                            var sCoords = getXformedCoords(source.cx.baseVal.value, source.cy.baseVal.value, offset, sMatrix);
-                            var tCoords = getXformedCoords(target.cx.baseVal.value, target.cy.baseVal.value, offset, tMatrix);
+                            var sCoords = getXformedCoords(
+                                source.cx.baseVal.value, source.cy.baseVal.value, offset, sMatrix);
+                            var tCoords = getXformedCoords(
+                                target.cx.baseVal.value, target.cy.baseVal.value, offset, tMatrix);
 
                             var dx = tCoords.x - sCoords.x,
                                 dy = tCoords.y - sCoords.y,
                                 dr = Math.sqrt(dx * dx + dy * dy);
-                            return "M" + sCoords.x + "," + sCoords.y + "A" + dr + "," + dr + " 0 0,1 " + tCoords.x + "," + tCoords.y;
+                            return "M" + sCoords.x + "," + sCoords.y +
+                                "A" + dr + "," + dr + " 0 0,1 " +
+                                tCoords.x + "," + tCoords.y;
                         };
                         
                         function getXformedCoords(x, y, offset, matrix) {
                             return {
-                                x: (matrix.a * x) + (matrix.c * y) + matrix.e - offset.left,
-                                y: (matrix.b * x) + (matrix.d * y) + matrix.f - offset.top
+                                x: (matrix.a * x) + (matrix.c * y) +
+                                    matrix.e - offset.left,
+                                y: (matrix.b * x) + (matrix.d * y) +
+                                    matrix.f - offset.top
                             }
                         }
                     }
         </script>
 
-        
-        <script id="figure1data" type="application/json">
-        {
-            "origins" : [
-                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
-                {"name": "OriginB", "x": 180, "y": "300", "state": "http"},
-                {"name": "OriginC", "x": 400, "y": "300", "state": "transitional"},
-                {"name": "OriginD", "x": 100, "y": "100", "state": "https"}
-            ],
-            "links": [
-                {"fromResource": "1", "toResource":"2", "scheme":"https"},
-                {"fromResource": "1", "toResource":"3", "scheme":"https"},
-                {"fromResource": "1", "toResource":"6", "scheme":"http"},
-                {"fromResource": "1", "toResource":"10", "scheme":"https"},
-                {"fromResource": "7", "toResource":"6", "scheme":"http"},
-                {"fromResource": "11", "toResource":"9", "scheme":"http"},
-                {"fromResource": "11", "toResource":"2", "scheme":"https"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "size" : 100,
-                    "children" :  [
-                        {"name" : "HTML", "id" : "11", "size" : 18, "state" : "https"},
-                        {"name" : "HTML", "id" : "1", "size" : 18, "state" : "mixed"},
-                        {"name" : "JS",   "id" : "2" },
-                        {"name" : "JPG",  "id" : "3" }
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "4", "size" : 18},
-                        {"name" : "JSON", "id" : "5"},
-                        {"name" : "JS",   "id" : "6"}
-                    ]
-                },
-                {
-                    "origin" : "OriginC",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "7", "size" : 18},
-                        {"name" : "JSON", "id" : "8"},
-                        {"name" : "JS",   "id" : "9"}
-                    ]
-                },
-                {
-                    "origin" : "OriginD",
-                    "size" : 40,
-                    "children" :  [
-                        {"name" : "JS", "id" : "10"}
-                    ]
-                }
-            ]
-        }
-        </script>
-        
-        <!--
-        <div id="figure1" style="height: 400px"></div>
-        <script>drawFigure("figure1", "figure1data");</script>
-        -->
         <h1>
             Why isn't HTTPS everywhere yet?
         </h1>
@@ -384,28 +386,24 @@ text {
         <script id="figure2data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 300, "y": "100", "state": "http"},
-                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
-            ],
-            "links": [
-                {"fromResource": "1", "toResource":"2", "scheme":"http"},
-                {"fromResource": "1", "toResource":"3", "scheme":"http"},
-                {"fromResource": "1", "toResource":"6", "scheme":"http"},
-                {"fromResource": "1", "toResource":"10", "scheme":"http"}
-            ],
-            "resources": [
                 {
-                    "origin" : "OriginA",
-                    "size" : 100,
+                    "name": "OriginA",
+                    "x": 300,
+                    "y": "110",
+                    "state": "http",
+                    "size" : 90,
                     "children" :  [
                         {"name" : "HTML", "id" : "1", "size" : 18},
                         {"name" : "JS",   "id" : "2" },
                         {"name" : "JPG",  "id" : "3" }
                     ]
+                    
                 },
                 {
-                    "origin" : "OriginB",
+                    "name": "OriginB",
+                    "x": 200,
+                    "y": "300",
+                    "state": "http",
                     "children" :  [
                         {"name" : "HTML", "id" : "4", "size" : 18},
                         {"name" : "JSON", "id" : "5"},
@@ -413,17 +411,26 @@ text {
                     ]
                 },
                 {
-                    "origin" : "OriginC",
-                    "size" : 40,
+                    "name": "OriginC",
+                    "x": 100,
+                    "y": "100",
+                    "state": "https",
+                    "size" : 50,
                     "children" :  [
                         {"name" : "JS", "id" : "10"}
                     ]
                 }
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"http"},
+                {"fromResource": "1", "toResource":"3", "scheme":"http"},
+                {"fromResource": "1", "toResource":"6", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"http"}
             ]
         }
         </script>
         
-        <div id="figure2" style="height: 400px"></div>
+        <div id="figure2" style="height: 425px"></div>
         <script>drawFigure("figure2", "figure2data");</script>
 
         <p>
@@ -432,30 +439,26 @@ text {
         </p>
         
         <script id="figure3data" type="application/json">
-        {
-            "origins" : [
-                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
-                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
-            ],
-            "links": [
-                {"fromResource": "1", "toResource":"2", "scheme":"http"},
-                {"fromResource": "1", "toResource":"3", "scheme":"http"},
-                {"fromResource": "1", "toResource":"6", "scheme":"http"},
-                {"fromResource": "1", "toResource":"10", "scheme":"http"}
-            ],
-            "resources": [
                 {
-                    "origin" : "OriginA",
-                    "size" : 100,
+            "origins" : [
+                {
+                    "name": "OriginA",
+                    "x": 300,
+                    "y": "110",
+                    "state": "https",
+                    "size" : 90,
                     "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
+                        {"name" : "HTML", "id" : "1", "size" : 18, "state" : "mixed"},
                         {"name" : "JS",   "id" : "2" },
                         {"name" : "JPG",  "id" : "3" }
                     ]
+                    
                 },
                 {
-                    "origin" : "OriginB",
+                    "name": "OriginB",
+                    "x": 200,
+                    "y": "300",
+                    "state": "http",
                     "children" :  [
                         {"name" : "HTML", "id" : "4", "size" : 18},
                         {"name" : "JSON", "id" : "5"},
@@ -463,12 +466,21 @@ text {
                     ]
                 },
                 {
-                    "origin" : "OriginC",
-                    "size" : 40,
+                    "name": "OriginC",
+                    "x": 100,
+                    "y": "100",
+                    "state": "https",
+                    "size" : 50,
                     "children" :  [
                         {"name" : "JS", "id" : "10"}
                     ]
                 }
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"2", "scheme":"http"},
+                {"fromResource": "1", "toResource":"3", "scheme":"http"},
+                {"fromResource": "1", "toResource":"6", "scheme":"http"},
+                {"fromResource": "1", "toResource":"10", "scheme":"http"}
             ]
         }
         </script>
@@ -579,9 +591,31 @@ text {
         <script id="figure4data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
-                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
+                {
+                    "name": "OriginA",
+                    "x": 300,
+                    "y": "110",
+                    "state": "https",
+                    "size" : 90,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" },
+                        {"name" : "HTML", "id" : "11", "size" : 18, "state" : "mixed"}
+                    ]
+                },
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 18},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https", "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
             ],
             "links": [
                 {"fromResource": "1", "toResource":"2", "scheme":"http"},
@@ -590,33 +624,6 @@ text {
                 {"fromResource": "1", "toResource":"10", "scheme":"http"},
                 {"fromResource": "11", "toResource":"2", "scheme":"http"},
                 {"fromResource": "11", "toResource":"10", "scheme":"http"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "size" : 100,
-                    "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
-                        {"name" : "JS",   "id" : "2" },
-                        {"name" : "JPG",  "id" : "3" },
-                        {"name" : "HTML", "id" : "11", "size" : 18, "state" : "mixed"}
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "4", "size" : 18},
-                        {"name" : "JSON", "id" : "5"},
-                        {"name" : "JS",   "id" : "6"}
-                    ]
-                },
-                {
-                    "origin" : "OriginC",
-                    "size" : 40,
-                    "children" :  [
-                        {"name" : "JS", "id" : "10"}
-                    ]
-                }
             ]
         }
         </script>
@@ -624,9 +631,31 @@ text {
         <script id="figure5data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 300, "y": "100", "state": "https"},
-                {"name": "OriginB", "x": 200, "y": "300", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "100", "state": "https"}
+                {
+                    "name": "OriginA",
+                    "x": 300,
+                    "y": "110",
+                    "state": "https",
+                    "size" : 90,
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
+                        {"name" : "JS",   "id" : "2" },
+                        {"name" : "JPG",  "id" : "3" },
+                        {"name" : "HTML", "id" : "11", "size" : 18}
+                    ]
+                },
+                {"name": "OriginB", "x": 200, "y": "300", "state": "http",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "4", "size" : 18},
+                        {"name" : "JSON", "id" : "5"},
+                        {"name" : "JS",   "id" : "6"}
+                    ]
+                },
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https", "size" : 40,
+                    "children" :  [
+                        {"name" : "JS", "id" : "10"}
+                    ]
+                }
             ],
             "links": [
                 {"fromResource": "1", "toResource":"2", "scheme":"https"},
@@ -635,33 +664,6 @@ text {
                 {"fromResource": "1", "toResource":"10", "scheme":"https"},
                 {"fromResource": "11", "toResource":"2", "scheme":"https"},
                 {"fromResource": "11", "toResource":"10", "scheme":"https"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "size" : 100,
-                    "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
-                        {"name" : "JS",   "id" : "2" },
-                        {"name" : "JPG",  "id" : "3" },
-                        {"name" : "HTML", "id" : "11", "size" : 18}
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "4", "size" : 18},
-                        {"name" : "JSON", "id" : "5"},
-                        {"name" : "JS",   "id" : "6"}
-                    ]
-                },
-                {
-                    "origin" : "OriginC",
-                    "size" : 40,
-                    "children" :  [
-                        {"name" : "JS", "id" : "10"}
-                    ]
-                }
             ]
         }
         </script>
@@ -698,37 +700,26 @@ text {
         <script id="figure6data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 300, "y": "300", "state": "http"},
-                {"name": "OriginB", "x": 200, "y": "100", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "300", "state": "http"}
+                {"name": "OriginA", "x": 300, "y": "300", "state": "http",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18},
+                        {"name" : "JS",   "id" : "2" }
+                    ]},
+                {"name": "OriginB", "x": 200, "y": "100", "state": "http",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 18},
+                        {"name" : " JS",   "id" : "4" }
+                    ]},
+                {"name": "OriginC", "x": 100, "y": "300", "state": "http",
+                     "children" :  [
+                        {"name" : "HTML", "id" : "5", "size" : 18},
+                        {"name" : "JS",   "id" : "6" }
+                    ]}
             ],
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"http"},
                 {"fromResource": "3", "toResource":"6", "scheme":"http"},
                 {"fromResource": "5", "toResource":"2", "scheme":"http"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18},
-                        {"name" : "JS",   "id" : "2" }
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "3", "size" : 18},
-                        {"name" : " JS",   "id" : "4" }
-                    ]
-                },
-                {
-                    "origin" : "OriginC",
-                     "children" :  [
-                        {"name" : "HTML", "id" : "5", "size" : 18},
-                        {"name" : "JS",   "id" : "6" }
-                    ]
-                }
             ]
         }
         </script>
@@ -783,45 +774,31 @@ text {
             <script id="figure7data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 300, "y": "300", "state": "http"},
-                {"name": "OriginB", "x": 200, "y": "100", "state": "http"},
-                {"name": "OriginC", "x": 100, "y": "300", "state": "http"},
-                {"name": "OriginD", "x": 400, "y": "100", "state": "http"}
+                {"name": "OriginA", "x": 300, "y": "300", "state": "http",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18},
+                        {"name" : "JS",   "id" : "2" }
+                    ]},
+                {"name": "OriginB", "x": 200, "y": "100", "state": "http",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 18},
+                        {"name" : " JS",   "id" : "4" }
+                    ]},
+                {"name": "OriginC", "x": 100, "y": "300", "state": "http",
+                     "children" :  [
+                        {"name" : "HTML", "id" : "5", "size" : 18},
+                        {"name" : "JS",   "id" : "6" }
+                    ]},
+                {"name": "OriginD", "x": 400, "y": "100", "state": "http",
+                     "children" :  [
+                        {"name" : "JS",   "id" : "7" }
+                    ]}
             ],
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"http"},
                 {"fromResource": "3", "toResource":"6", "scheme":"http"},
                 {"fromResource": "3", "toResource":"7", "scheme":"http"},
                 {"fromResource": "5", "toResource":"2", "scheme":"http"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18},
-                        {"name" : "JS",   "id" : "2" }
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "3", "size" : 18},
-                        {"name" : " JS",   "id" : "4" }
-                    ]
-                },
-                {
-                    "origin" : "OriginC",
-                     "children" :  [
-                        {"name" : "HTML", "id" : "5", "size" : 18},
-                        {"name" : "JS",   "id" : "6" }
-                    ]
-                },
-                {
-                    "origin" : "OriginD",
-                     "children" :  [
-                        {"name" : "JS",   "id" : "7" }
-                    ]
-                }
             ]
         }
         </script>
@@ -978,45 +955,31 @@ text {
             <script id="figure8data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 300, "y": "300", "state": "https"},
-                {"name": "OriginB", "x": 200, "y": "100", "state": "https"},
-                {"name": "OriginC", "x": 100, "y": "300", "state": "https"},
-                {"name": "OriginD", "x": 400, "y": "100", "state": "http"}
+                {"name": "OriginA", "x": 300, "y": "300", "state": "https",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18},
+                        {"name" : "JS",   "id" : "2" }
+                    ]},
+                {"name": "OriginB", "x": 200, "y": "100", "state": "https",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 18, "state" : "http"},
+                        {"name" : " JS",   "id" : "4", "state" : "https"}
+                    ]},
+                {"name": "OriginC", "x": 100, "y": "300", "state": "https",
+                     "children" :  [
+                        {"name" : "HTML", "id" : "5", "size" : 18},
+                        {"name" : "JS",   "id" : "6" }
+                    ]},
+                {"name": "OriginD", "x": 400, "y": "100", "state": "http",
+                     "children" :  [
+                        {"name" : "JS",   "id" : "7" }
+                    ]}
             ],
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"https"},
                 {"fromResource": "3", "toResource":"6", "scheme":"http"},
                 {"fromResource": "3", "toResource":"7", "scheme":"http"},
                 {"fromResource": "5", "toResource":"2", "scheme":"https"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18},
-                        {"name" : "JS",   "id" : "2" }
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "3", "size" : 18, "state" : "http"},
-                        {"name" : " JS",   "id" : "4", "state" : "https"}
-                    ]
-                },
-                {
-                    "origin" : "OriginC",
-                     "children" :  [
-                        {"name" : "HTML", "id" : "5", "size" : 18},
-                        {"name" : "JS",   "id" : "6" }
-                    ]
-                },
-                {
-                    "origin" : "OriginD",
-                     "children" :  [
-                        {"name" : "JS",   "id" : "7" }
-                    ]
-                }
             ]
         }
         </script>
@@ -1034,31 +997,23 @@ text {
         <script id="figure9data" type="application/json">
         {
             "origins" : [
-                {"name": "OriginA", "x": 100, "y": "100", "state": "https"},
-                {"name": "OriginB", "x": 300, "y": "100", "state": "https"}
+                {"name": "OriginA", "x": 100, "y": "100", "state": "https",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
+                        {"name" : "JS",   "id" : "2" }
+                    ]},
+                {"name": "OriginB", "x": 300, "y": "100", "state": "https",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "3", "size" : 18, "state" : "http"},
+                        {"name" : " JPG",   "id" : "4", "state" : "https"},
+                        {"name" : " JS",   "id" : "5", "state" : "https"}
+                    ]}
             ],
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"https"},
                 {"fromResource": "1", "toResource":"3", "scheme":"http"},
                 {"fromResource": "1", "toResource":"2", "scheme":"https"},
                 {"fromResource": "1", "toResource":"5", "scheme":"https"}
-            ],
-            "resources": [
-                {
-                    "origin" : "OriginA",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "1", "size" : 18},
-                        {"name" : "JS",   "id" : "2" }
-                    ]
-                },
-                {
-                    "origin" : "OriginB",
-                    "children" :  [
-                        {"name" : "HTML", "id" : "3", "size" : 18, "state" : "http"},
-                        {"name" : " JPG",   "id" : "4", "state" : "https"},
-                        {"name" : " JS",   "id" : "5", "state" : "https"}
-                    ]
-                }
             ]
         }
         </script>
