@@ -1029,7 +1029,7 @@ text {
             when loaded in this way, so we aren't introducing any new breakage
             or mixed content experiences for users of OriginB.
         </p>
-        <h3>A new state</h3>
+        <h3><tt>https-transitional</tt> with ALPN and HTTP Alt-Svc</h3>
         <p>
             <a href="https://tools.ietf.org/html/rfc7301">
             ALPN</a> allows a client interacting with a server over TLS to
@@ -1110,14 +1110,94 @@ text {
         </p>
         <p>
             When a document has been loaded in transitional mode, the user agent
-            SHOULD attempt to upgrade all resoruces which would have been blocked
+            should attempt to upgrade all resources which would have been blocked
             as mixed-content, as if <tt>upgrade-insecure-resources</tt> had been
-            set, but MUST silently retry over http if the upgrade fails.  It
-            MUST report an error on the console in such cases and SHOULD provide
+            set, but must silently retry over http if the upgrade fails.  It
+            must report an error on the console in such cases and SHOULD provide
             a means for sites to request reports similar to (or re-using) the
             Content Security Policy mechanism.  This will allow operators to
             understand, from genuine user traffic, whether all of their
             dependencies are upgradable, as part of a transition to full https.
+        </p>
+            <script id="figure10data" type="application/json">
+         {
+            "origins" : [
+                {"name": "OriginA", "x": 100, "y": "100", "state": "https",
+                    "children" :  [
+                        {"name" : "HTML", "id" : "1", "size" : 18},
+                        {"name" : "HTML", "id" : "2", "size" : 18}
+                    ]
+                },
+                {"name": "OriginB", "x": 300, "y": "100", "state": "transitional",
+                    "children" :  [
+                        {"name" : " HTML",   "id" : "7", "size" : 18},
+                        {"name" : "HTML", "id" : "3", "size" : 18, "state" : "mixed"},
+                        {"name" : " HTML",   "id" : "4", "size" : 18}
+                    ]
+                },
+                {"name": "OriginC", "x": 500, "y": "100", "state": "transitional",
+                    "children" :  [
+                        {"name" : " JS",   "id" : "5"}
+                    ]
+                },
+                {"name": "OriginD", "x": 450, "y": "300", "state": "http",
+                    "children" :  [
+                        {"name" : " JS",   "id" : "6"}
+                    ]
+                }
+            ],
+            "links": [
+                {"fromResource": "1", "toResource":"4", "scheme":"http"},
+                {"fromResource": "2", "toResource":"3", "scheme":"http"},
+                {"fromResource": "3", "toResource":"6", "scheme":"http"},
+                {"fromResource": "4", "toResource":"5", "scheme":"http"},
+                {"fromResource": "7", "toResource":"6", "scheme":"http"}
+            ]
+        }
+        </script>
+        
+        <div id="figure10" style="height: 400px"></div>
+        <script>drawFigure("figure10", "figure10data");</script>
+        <p>
+            The above figure represents the implications of these rules.
+            Resources loaded from OriginA which iframe resources from
+            OriginB will never have mixed content warnings because OriginB
+            supports transitional mode.  However, if resources from OriginB
+            are loaded in iframes from documents that block mixed content,
+            and depend on resources which cannot be upgraded, (such as the
+            JS resource on OriginD) those fetches will silently be blocked to
+            maintain the tranquility of the ancestor resources.  This partial
+            breakage is still preferrable to the current state where the
+            initial load from OriginA would have been completely blocked.
+            A resource loaded as a direct navigation from OriginB which depends
+            on the same non-upgradable resource at OriginD would not have see
+            the load blocked becuase it does not inherit a tranquility contract
+            from a frame ancestor.
+        </p>
+        <h3>Performance Impacts</h3>
+        <p>
+            For https resources, this proposal shouldn't introduce any new
+            latency compared to using Upgrade-Insecure-Requests.  The ALPN
+            negotiation makes it totally transparent.  Browsers will be attempting
+            TLS first, anyway, and it won't require any additional round trips
+            to determine if https-transitional is supported.
+        </p>
+            The only place where there may be a performance impact is when
+            a navigational request is upgraded due to the presence of an
+            Alt-Svc header.  Because the user agent will attempt to recursively
+            upgrade all subresources of an upgraded document, which may not all
+            be available upgraded or over https, this has the possibility of
+            introducing significant new latency. User agents might reduce this
+            by remembering the fact that TLS was unavailable for a given origin
+            for some period of time, or they might attempt upgraded and non-upgraded
+            fetches in parallel to be able to instantly substitute the http
+            version on an aggressive timeout for secure connection establishment.
+            This latter approach is bad for privacy in the presence of passive
+            attackers.  Some experimentation is probably necessary here to arrive
+            at the best strategy.  Peformance costs will be higher when transitional mode is
+            new, and will consistently decline as it becomes more widely available.
+        <p>
+            
         </p>
         <h2>Locking down</h2>
         <p>
@@ -1125,8 +1205,10 @@ text {
             load from an https context will never fail down to plaintext or
             an unauthenticated connection, but optimistic upgrades are not,
             by themselves, enough to stop an active network attacker from
-            forcing a downgrade back to an unecrypted connection.  During
-            the transitional period, that's an explicit goal.  How do we get
+            forcing a downgrade back to an unecrypted connection for navigations
+            or top-of-window resources loaded transitionally.  During
+            the transitional period, it's an explicit goal to never break
+            if the upgrade can't succeed.  How do we get
             from transitional to finally secure, especially if the existence
             of transitional is a means to avoid sites having to change the
             scheme of every http link out there?  Related to this, we also
@@ -1134,7 +1216,46 @@ text {
             resources to stop those same attackers.
         </p>
         <p>
-            
+            We can start with some design patterns from
+            <a href="http://www.rfc-editor.org/rfc/rfc6797.txt">HTTP
+            Strict Transport Security</a>, which was invented to solve this
+            problem for HTTPS sites that wanted to fully deprecate HTTP.
+            Security, as well as the Alt-Svc header mentioned earlier.
+        </p>
+        <p>
+            The first thing a site could do is set the freshness of its Alt-Svc
+            advertisement to "infinite".  This would be a signal to user agents
+            which understand it to never attempt a plaintext connection to that
+            Origin again - only use https-transitional and https, forever.
+            User agents might, as they do today, allow sites to opt-in to a
+            preload of this setting.  After doing this, a service could continue
+            to offer service over plaintext for legacy clients, or it could
+            turn it off if it determines that traffic is acceptably low.
+        </p>
+        <p>
+            The next thing is that content served with transitional mode needs
+            a way to opt-in to tranquility.  This is also probably best handled
+            by an HTTP header.  Setting the "tranquil" bit would imply at least
+            that the document's setting object should restrict mixed content.
+            It might even allow such a resource to be eligible to be same-origin
+            with https content, though that requires additional analysis, and
+            probably would be a different flag, so sites can make
+            appropriate transition of cookies, local storage and other Origin
+            scoped state on the client.  A tranquil resource might also be
+            eligible to get the "lock" or whatever other secure UI treatement
+            is applied to https.
+        </p>
+        <p>
+            Eventually, if penetration of transitional mode is sufficient,
+            user agents could start dropping support for http.  Perhaps first
+            as a user preference flag, then with a compatibility list enabling
+            a few laggard sites to still use plaintext, then with a big,
+            interstitial warning.  As flag days go, this would be much less
+            painful than the current possibilities, because the process of
+            readying your site for the transition could be almsot entirely
+            automated, with little or no risk of breakage.  Many sites would
+            probably stay at the transitional state indefinitely, but users would
+            still be getting all the benefits they expect from TLS today.
         </p>
     </body>
 </html>
