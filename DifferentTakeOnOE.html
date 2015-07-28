@@ -389,9 +389,9 @@ text {
                 {
                     "name": "OriginA",
                     "x": 300,
-                    "y": "110",
+                    "y": "100",
                     "state": "http",
-                    "size" : 90,
+                    
                     "children" :  [
                         {"name" : "HTML", "id" : "1", "size" : 18},
                         {"name" : "JS",   "id" : "2" },
@@ -415,7 +415,7 @@ text {
                     "x": 100,
                     "y": "100",
                     "state": "https",
-                    "size" : 50,
+                    
                     "children" :  [
                         {"name" : "JS", "id" : "10"}
                     ]
@@ -444,9 +444,9 @@ text {
                 {
                     "name": "OriginA",
                     "x": 300,
-                    "y": "110",
+                    "y": "100",
                     "state": "https",
-                    "size" : 90,
+                    
                     "children" :  [
                         {"name" : "HTML", "id" : "1", "size" : 18, "state" : "mixed"},
                         {"name" : "JS",   "id" : "2" },
@@ -470,7 +470,7 @@ text {
                     "x": 100,
                     "y": "100",
                     "state": "https",
-                    "size" : 50,
+                    
                     "children" :  [
                         {"name" : "JS", "id" : "10"}
                     ]
@@ -594,9 +594,9 @@ text {
                 {
                     "name": "OriginA",
                     "x": 300,
-                    "y": "110",
+                    "y": "100",
                     "state": "https",
-                    "size" : 90,
+                    
                     "children" :  [
                         {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
                         {"name" : "JS",   "id" : "2" },
@@ -611,7 +611,7 @@ text {
                         {"name" : "JS",   "id" : "6"}
                     ]
                 },
-                {"name": "OriginC", "x": 100, "y": "100", "state": "https", "size" : 40,
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https",
                     "children" :  [
                         {"name" : "JS", "id" : "10"}
                     ]
@@ -634,9 +634,9 @@ text {
                 {
                     "name": "OriginA",
                     "x": 300,
-                    "y": "110",
+                    "y": "100",
                     "state": "https",
-                    "size" : 90,
+                    
                     "children" :  [
                         {"name" : "HTML", "id" : "1", "size" : 18, "state": "mixed"},
                         {"name" : "JS",   "id" : "2" },
@@ -651,7 +651,7 @@ text {
                         {"name" : "JS",   "id" : "6"}
                     ]
                 },
-                {"name": "OriginC", "x": 100, "y": "100", "state": "https", "size" : 40,
+                {"name": "OriginC", "x": 100, "y": "100", "state": "https", 
                     "children" :  [
                         {"name" : "JS", "id" : "10"}
                     ]
@@ -889,16 +889,16 @@ text {
         </script>
 
         <p>
-            First, OriginB turns on "https transitional" mode.  This means that is resources are
+            First, OriginB turns on "https-transitional" mode.  This means that is resources are
             still not available at URLs with an https scheme, but are optimistically available
             over TLS with the full guarantees, including a valid certificate.  This is essentially
             zero-cost for OriginB because it makes no new guarantees to users or browsers about
             the security state or tranquility of its own resources.
         </p>
         <p>
-            Now that OriginB's resources are available via "https transitional", OriginA turns on
+            Now that OriginB's resources are available via "https-transitional", OriginA turns on
             https.  It has an HTML file with an http dependency on the JS file at OriginB.  A
-            browser that knows about "https transitional" can try to initiate a TLS connection
+            browser that knows about "https-transitional" can try to initiate a TLS connection
             to OriginB and ask for the resource with its original http scheme.  If this
             optimistic upgrade fails, it would be treated as insecure and trigger mixed content
             blocking, so we haven't reduced the guarantees to users of OriginA.  If it succeeds,
@@ -989,8 +989,8 @@ text {
 
         <h3>Enter the &lt;iframe&gt;</h3>
         <p>
-            One of the problems with simply not offering HTML resources over
-            https is when there are HTML to HTML dependencies in the form of
+            Unfortunately, no, just filtering HTML resources from being offered over
+            standard https isn't enough; it fails with HTML to HTML dependencies from
             iframes.  This is actually quite common for advertising.
         </p>
 
@@ -1028,6 +1028,113 @@ text {
             The key to why this is OK is that a non-upgraded document would already be broken
             when loaded in this way, so we aren't introducing any new breakage
             or mixed content experiences for users of OriginB.
+        </p>
+        <h3>A new state</h3>
+        <p>
+            <a href="https://tools.ietf.org/html/rfc7301">
+            ALPN</a> allows a client interacting with a server over TLS to
+            indicate a different application layer protocol it wishes to use.
+        </p>
+        <p>
+            Let's imagine a new ALPN protocol type: "https-transitional".  A
+            server which sees a client request for that understands it as:
+            "connect me to the resources and configuration served over http,
+            but over TLS, not the https site, please".
+            (The state of firewalls and other middleboxes effectively prevents
+            the the introduction of a new port with any expectation of wide
+            compatbility.)  As described by the HTTP Alt-Svc draft, a full and
+            successful TLS connection must be completed, and the server must
+            present a certificate which matches the original http hostname.
+            Unlike the ALt-Svc mechanism, resources fetched as transitional
+            will behave slightly differently.
+        </p>
+        <p>
+            A resource fetched over "https-transitional" will
+            have the following properties in the user agent:
+            <ul>
+                <li>
+                    A resource fetched over "https-transitional" should not be
+                    blocked as mixed content if the responsible document's
+                    settings object restricts mixed content.
+                </li>
+                <li>
+                    The settings object for a document fetched over
+                    "https-transitional" should not restrict mixed content.
+                </li>
+                <li><i>Unless</i> any ancestor frames of the document
+                    restrict mixed content, in which case it must
+                    restrict mixed content, and <tt>upgrade-insecure-requests</tt>
+                    is automatically impled.</li>
+            </ul>
+        </p>
+        <p>
+            Upgrade-Insecure-Requests would be modified in the following way:
+            <ul>
+                <li>
+                    When encountering a subresoruce with an http scheme to be
+                    upgraded, connect to the https endpoint of the server at
+                    the indicated Origin, and add the new "https-transitional"
+                    ALPN protocol, as preferred, in addition to the standard
+                    http/spdy/h2 protocol that would ordinarily be used.
+                </li>
+                <li>
+                    If a server understands the "https-transitional" ALPN
+                    negotiation, respond on that protocol and deliver the
+                    http resource over TLS.
+                </li>
+                <li>
+                    A server which does not understand the "https-transitional"
+                    protocol will respond with the resource from the https site,
+                    if available.
+                </li>
+            </ul>
+        </p>
+        <p>
+            Mixed Content blocking would also be modified.  User agents do not
+            currently automatically attempt to upgrade http -> https in contexts
+            where mixed content is blocked because there is no explicit
+            guarantee that the resources at both schemes are semantically
+            equivalent.  The "https-transitional" scheme <i>does</i> explicitly
+            make the equivalency guarantee, so a user
+            agent can always automatically attempt to upgrade any request
+            which would be blocked as insecure mixed content to "https-transitional"
+            without any hint from the server.
+        </p>
+        <p>
+            Servers could also advertise the availability of transitional mode
+            with the <a href="https://tools.ietf.org/html/draft-ietf-httpbis-alt-svc">
+            HTTP Alt-Svc</a> header.  If a user agent has seen an Alt-Svc
+            advertisement for an Origin that is still fresh, it can always
+            make the upgrade, even for navigational requests, giving the
+            benefits of opportunistic encryption against passive adversaries.
+        </p>
+        <p>
+            When a document has been loaded in transitional mode, the user agent
+            SHOULD attempt to upgrade all resoruces which would have been blocked
+            as mixed-content, as if <tt>upgrade-insecure-resources</tt> had been
+            set, but MUST silently retry over http if the upgrade fails.  It
+            MUST report an error on the console in such cases and SHOULD provide
+            a means for sites to request reports similar to (or re-using) the
+            Content Security Policy mechanism.  This will allow operators to
+            understand, from genuine user traffic, whether all of their
+            dependencies are upgradable, as part of a transition to full https.
+        </p>
+        <h2>Locking down</h2>
+        <p>
+            At some point, sites will still want to abandon plaintext http. A
+            load from an https context will never fail down to plaintext or
+            an unauthenticated connection, but optimistic upgrades are not,
+            by themselves, enough to stop an active network attacker from
+            forcing a downgrade back to an unecrypted connection.  During
+            the transitional period, that's an explicit goal.  How do we get
+            from transitional to finally secure, especially if the existence
+            of transitional is a means to avoid sites having to change the
+            scheme of every http link out there?  Related to this, we also
+            eventually want to be able to enforce tranquility on upgraded
+            resources to stop those same attackers.
+        </p>
+        <p>
+            
         </p>
     </body>
 </html>
