@@ -926,7 +926,7 @@ text {
             How could we introduce this state?
         </h2>
         <p>
-            A first approxmiation, just to break resource dependency deadlocks without introducing documents
+            A first take, just to break resource dependency deadlocks without introducing documents
             with mixed content into the world, would be to enable https
             with a server filter that returns a 404 whenever it would otherwise return a Content-Type of text/html.
             In fact, it's probably a surprisingly good approximation, modulo some edge cases involving
@@ -1068,7 +1068,7 @@ text {
             Upgrade-Insecure-Requests would be modified in the following way:
             <ul>
                 <li>
-                    When encountering a subresoruce with an http scheme to be
+                    When encountering a subresource with an http scheme to be
                     upgraded, connect to the https endpoint of the server at
                     the indicated Origin, and add the new "https-transitional"
                     ALPN protocol, as preferred, in addition to the standard
