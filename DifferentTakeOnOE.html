@@ -111,7 +111,7 @@ text {
                         var targetNode = document.getElementById(targetName);
                         var jsonData = JSON.parse(document.getElementById(data).textContent);
 
-                        // set default sizes for resoruces for packing if not
+                        // set default sizes for resources for packing if not
                         // explicitly set: container diameter = 80, item = 15
                         jsonData.origins.forEach( function(rsc) {
                             if(!rsc.size) { rsc.size = 80; }
@@ -172,7 +172,7 @@ text {
                             return "translate(0," + -(d.size + 5) + ")";
                         });
 
-                        // insert hyperlinks after origins, before resources
+                        // insert hyperlinks after origins, before resources.
                         // draw two paths - an underlay and an identical path
                         // on top, which allows us to create either dashed
                         // or solid patterns with just CSS (set color of
@@ -264,7 +264,7 @@ text {
                             // which would put them on top)  Get the bounding
                             // rectangle and the coordinate transformation matrix
                             // and apply these to find the "true" center of each
-                            // recource circle.
+                            // resource circle.
                             var offset = svg.node().getBoundingClientRect();
                             var tMatrix = target.getScreenCTM();
                             var sMatrix = source.getScreenCTM();
@@ -943,10 +943,6 @@ text {
                     <li>fire a report</li>
                 </ol>
             </ol>
-            This would introduce considerable latency for http pages employing
-            it, as many of the upgrades would fail and they would have to block on those failures before retrying
-            with http.  Perhaps HTTP/2 Alternative Services could be employed, and the upgrade would only be
-            attempted if an https AltSvc was advertised?
         </p>
         <p>
             Is it possible we don't need anything more than that?  Basically this
