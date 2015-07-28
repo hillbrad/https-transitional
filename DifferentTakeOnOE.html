@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <title>Getting to 100% secure with an "https-transitional" mode.</title>
         <style>
 body {
     font-family: Roboto, sans-serif;
@@ -517,7 +518,7 @@ text {
         <p>
             It turns out there is  one formal security property that
             browsers try to enforce on documents.  That is a property
-            first formulated as <i>"Tranquility"</i> by 
+            first formulated as <i>"Tranquility"</i> by
             <a href="https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model">
             Bell and LaPadula in their 1973 integrity model.</a>
             In simple terms, the tranquility enforced by web browsers is that
@@ -1157,7 +1158,15 @@ text {
         </script>
         
         <div id="figure10" style="height: 400px"></div>
-        <script>drawFigure("figure10", "figure10data");</script>
+        <script>drawFigure("figure10", "figure10data");
+                document.getElementById("figure10_origins_OriginB")
+                .lastChild
+                .textContent = "http[s]://OriginB";
+                document.getElementById("figure10_origins_OriginC")
+                .lastChild
+                .textContent = "http[s]://OriginC";
+            
+        </script>
         <p>
             The above figure represents the implications of these rules.
             Resources loaded from OriginA which iframe resources from
@@ -1252,7 +1261,7 @@ text {
             a few laggard sites to still use plaintext, then with a big,
             interstitial warning.  As flag days go, this would be much less
             painful than the current possibilities, because the process of
-            readying your site for the transition could be almsot entirely
+            readying your site for the transition could be almost entirely
             automated, with little or no risk of breakage.  Many sites would
             probably stay at the transitional state indefinitely, but users would
             still be getting all the benefits they expect from TLS today.
