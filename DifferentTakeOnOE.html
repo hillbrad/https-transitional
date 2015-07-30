@@ -309,25 +309,30 @@ text {
             obtaining, configuring, presenting and maintaining a valid
             certificate.  You must find a certificate authority, prove your
             identity, pay for a certificate, set it up on your server (you
-            probably need to have a dedicated IPv4 address to support old 
+            probably need to have a dedicated IPv4 address to support old
             clients that don't
             do Server Name Indication) and renew it before it expires.
         </p>
         <p>
-            A lot of the proposals for "opportunistic" encryption are targeted
+            Most proposals for "opportunistic" encryption are targeted
             at this level of the problem, and amount to: "The NSA is
             recording all of our traffic, so why don't we just encrypt even if
-            we don't have a certificate?"
+            we don't have a certificate?"  The goal of such proposals is to
+            raise the cost of passive bulk surveillance, not to address more
+            sophisticated or targeted attacks by active network attackers.
         </p>
         <p>
             I appreciate the spirit of this solution, but I have come
-            to believe it is actually targeting the wrong obstacles. First, this
-            flavor of OE solves very few problems because you can never rely on
-            it, even when it appears to succeed.  For users that care, it offers
-            little comfort, and for site operators who want to get to reliable
-            guarantees, it offers no easier path forward. Second, I don't think
-            the certificate problem is actually the biggest challenge blocking
-            HTTPS everywhere anymore.
+            to believe it is actually targeting the wrong obstacles. First, because
+            this flavor of OE lacks authentication even when it appears to
+            succeed, it doesn't offer any guarantees that other resources can
+            build meaningful security contracts with.  Since users
+            and resource authors who also care about active attackers can never
+            rely on it, even optimistically, it doesn't remove any obstacles or
+            provide a meaningfully improved upgrade path to a Web that is
+            comprehensively secure against both active and passive adversaries.
+            Second, I don't think the certificate problem is actually the
+            biggest challenge blocking HTTPS everywhere anymore.
         </p>
         <p>
             The fine folks over at
