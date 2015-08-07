@@ -549,7 +549,9 @@ text {
             over time.  The HTML resource at OriginA will be broken because
             attempts to load the three JS resources it depends on will be blocked,
             and it will be marked with a mixed content warning for the JPG, even
-            if we didn't have the JS resources.
+            if we didn't have the JS resources. Note that even though some
+            resources are available over https, because the existing links use
+            the http scheme, they will still fail.
         </p>
         
         <h3>
