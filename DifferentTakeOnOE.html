@@ -52,11 +52,15 @@ text {
 .http_to_transitional {
   animation-duration: 2s;
   animation-name: http_to_transitional;
+  -webkit-animation-duration: 2s;
+  -webkit-animation-name: http_to_transitional;
 }
 
 .http_to_https {
   animation-duration: 2s;
   animation-name: http_to_https;
+  -webkit-animation-duration: 2s;
+  -webkit-animation-name: http_to_https;
 }
 
 @keyframes http_to_transitional {
@@ -78,6 +82,27 @@ text {
     fill: #8f8;
   }
 }
+
+@-webkit-keyframes http_to_transitional {
+  from {
+    fill: #f88;
+  }
+
+  to {
+    fill: #88f;
+  }
+}
+
+@-webkit-keyframes http_to_https {
+  from {
+    fill: #f88;
+  }
+
+  to {
+    fill: #8f8;
+  }
+}
+
 
 .hyperlink {
     fill: none;
@@ -300,6 +325,7 @@ text {
             Encryption.  We all like it and want more of it.  Why isn't HTTPS
             everywhere yet?
         </p>
+
         <h2>
             Is it certificates?
         </h2>
@@ -310,8 +336,8 @@ text {
             certificate.  You must find a certificate authority, prove your
             identity, pay for a certificate, set it up on your server (you
             probably need to have a dedicated IPv4 address to support old
-            clients that don't
-            do Server Name Indication) and renew it before it expires.
+            clients that don't do Server Name Indication, but that's a
+            different issue) and renew it before it expires.
         </p>
         <p>
             Most proposals for "opportunistic" encryption are targeted
@@ -346,14 +372,7 @@ text {
             that race left to be run, I think we can optimistcally call it a
             solved problem.
         </p>
-        <p>
-            The SNI + IPv4 issue (mulitple hosts can't share the same IPv4
-            address for clients that don't support Server Name Indication
-            without getting a certificate with all of their names in it) I am
-            confident will naturally resolve itself as those old platforms
-            tail off and IPv6 ramps up.
-        </p>
-        
+
         <h2>
             Now we have a certificate, we can turn on HTTPS, right?
         </h2>
@@ -527,7 +546,7 @@ text {
             <a href="https://en.wikipedia.org/wiki/Bell%E2%80%93LaPadula_model">
             Bell and LaPadula in their 1973 integrity model.</a>
             In simple terms, the tranquility enforced by web browsers is that
-            a secure docment will not become insecure while you are interacting
+            a secure document will not become insecure while you are interacting
             with it.
         </p>
         <p>
@@ -538,12 +557,16 @@ text {
             the address bar, or at any point check to see if there is a lock
             icon for the document you are interacting with, the browser has made
             you a promise that the content is protected from threats involving a
-            hostile network. (or alternately, the browser is conveying a promise
-            from the site operator which it is unwilling to let it reneg on)
+            hostile network. Another way to look at it is that, the browser is
+            conveying a promise to the user from the site operator which it is
+            unwilling to let it reneg on.  Site operators may also expect and
+            rely on browsers to fulfill this promise, so one typo or missed link
+            by a single developer somewhere doesn't undo all the hard work they've
+            done to provide a secure experience for their users.
         </p>
         <p>
             If your https
-            document were to load a script, preform a fetch or even load an image
+            document were to load a script, perform a fetch or even load an image
             over http, that promise would be broken.  How broken and what the
             exact consequences would be
             might vary widely, but the browser isn't in a position to know, and
@@ -835,9 +858,9 @@ text {
             }
             
             function animateFigure7() {
-            document.getElementById("figure7_origins_OriginB")
-            .firstChild
-            .addEventListener("animationend", step1, false);
+            var e_0 = document.getElementById("figure7_origins_OriginB").firstChild;
+            e_0.addEventListener("animationend", step1, false);
+            e_0.addEventListener("webkitAnimationEnd", step1, false);
             
             // step 0
             document.getElementById("figure7_origins_OriginB")
@@ -851,9 +874,9 @@ text {
                 d3.selectAll("#figure7 circle.OriginB")
                 .attr("class", function(d) { return h2t2t(d3.select(this).attr("class")) });
                 
-                document.getElementById("figure7_origins_OriginA")
-                .firstChild
-                .addEventListener("animationend", step2, false);
+                var e_1 = document.getElementById("figure7_origins_OriginA").firstChild;
+                e_1.addEventListener("animationend", step2, false);
+                e_1.addEventListener("webkitAnimationEnd", step2, false);
                 
                 document.getElementById("figure7_origins_OriginA")
                 .lastChild
@@ -867,9 +890,9 @@ text {
                 d3.selectAll("#figure7 circle.OriginA")
                 .attr("class", function(d) { return h2s2s(d3.select(this).attr("class")) });
                 
-                document.getElementById("figure7_origins_OriginC")
-                .firstChild
-                .addEventListener("animationend", step3, false);
+                var e_2 = document.getElementById("figure7_origins_OriginC").firstChild;
+                e_2.addEventListener("animationend", step3, false);
+                e_2.addEventListener("webkitAnimationEnd", step3, false);
                 
                 document.getElementById("figure7_origins_OriginC")
                 .lastChild
