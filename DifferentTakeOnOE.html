@@ -49,6 +49,12 @@ text {
     fill: #88f;
 }
 
+.hyperlinkText {
+    fill: #f00;
+    font-weight: 800;
+    font-size: 20px;
+}
+
 .http_to_transitional {
   animation-duration: 2s;
   animation-name: http_to_transitional;
@@ -222,6 +228,28 @@ text {
                         .attr("marker-end", function(d) {
                             return "url(#" + d.scheme + ")";
                         });
+                        
+                        var hyperlink_text = svg.append("g").selectAll("text")
+                        .data(jsonData.links)
+                        .enter().append("text")
+                        .attr("class", "hyperlinkText")
+                        .style("text-anchor", "middle")
+                        .append("textPath")
+                        .attr("startOffset", "50%")
+                        .attr("xlink:href", function(d) {
+                            return "#" + targetName + "_hyperlinks_" +
+                                d.fromResource + "_to_" + d.toResource
+                        })
+                        .append("tspan")
+                        .attr("dy", "7")
+                        .text(function(d) {
+                            if (d.mixed) {
+                                return "X";
+                            } else {
+                                return "";
+                            }
+                        });
+                        
                         // we need to insert the links before the resources so
                         // they are underneath, but we don't know the layout
                         // yet of the nodes they're connecting, so do the
@@ -406,7 +434,7 @@ text {
             available over http schemes.  Dashed lines represent subresource
             includes made with an http scheme.  Solid lines represent subresource
             includes made with an https scheme.  Assume that all links are absolute,
-            not relative.
+            not relative.  A red "X" indicates a resource load that will fail.
         </p>
         <script id="figure2data" type="application/json">
         {
@@ -502,10 +530,10 @@ text {
                 }
             ],
             "links": [
-                {"fromResource": "1", "toResource":"2", "scheme":"http"},
-                {"fromResource": "1", "toResource":"3", "scheme":"http"},
-                {"fromResource": "1", "toResource":"6", "scheme":"http"},
-                {"fromResource": "1", "toResource":"10", "scheme":"http"}
+                {"fromResource": "1", "toResource":"2", "scheme":"http", "mixed":true},
+                {"fromResource": "1", "toResource":"3", "scheme":"http", "mixed":true},
+                {"fromResource": "1", "toResource":"6", "scheme":"http", "mixed":true},
+                {"fromResource": "1", "toResource":"10", "scheme":"http", "mixed":true}
             ]
         }
         </script>
@@ -647,12 +675,12 @@ text {
                 }
             ],
             "links": [
-                {"fromResource": "1", "toResource":"2", "scheme":"http"},
-                {"fromResource": "1", "toResource":"3", "scheme":"http"},
-                {"fromResource": "1", "toResource":"6", "scheme":"http"},
-                {"fromResource": "1", "toResource":"10", "scheme":"http"},
-                {"fromResource": "11", "toResource":"2", "scheme":"http"},
-                {"fromResource": "11", "toResource":"10", "scheme":"http"}
+                {"fromResource": "1", "toResource":"2", "scheme":"http", "mixed":true},
+                {"fromResource": "1", "toResource":"3", "scheme":"http", "mixed":true},
+                {"fromResource": "1", "toResource":"6", "scheme":"http", "mixed":true},
+                {"fromResource": "1", "toResource":"10", "scheme":"http", "mixed":true},
+                {"fromResource": "11", "toResource":"2", "scheme":"http", "mixed":true},
+                {"fromResource": "11", "toResource":"10", "scheme":"http", "mixed":true}
             ]
         }
         </script>
@@ -689,7 +717,7 @@ text {
             "links": [
                 {"fromResource": "1", "toResource":"2", "scheme":"https"},
                 {"fromResource": "1", "toResource":"3", "scheme":"https"},
-                {"fromResource": "1", "toResource":"6", "scheme":"https"},
+                {"fromResource": "1", "toResource":"6", "scheme":"https", "mixed":true},
                 {"fromResource": "1", "toResource":"10", "scheme":"https"},
                 {"fromResource": "11", "toResource":"2", "scheme":"https"},
                 {"fromResource": "11", "toResource":"10", "scheme":"https"}
@@ -1036,7 +1064,7 @@ text {
             ],
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"https"},
-                {"fromResource": "1", "toResource":"3", "scheme":"http"},
+                {"fromResource": "1", "toResource":"3", "scheme":"http", "mixed":true},
                 {"fromResource": "1", "toResource":"2", "scheme":"https"},
                 {"fromResource": "1", "toResource":"5", "scheme":"https"}
             ]
@@ -1156,7 +1184,7 @@ text {
                 {"name": "OriginB", "x": 300, "y": "100", "state": "transitional",
                     "children" :  [
                         {"name" : " HTML",   "id" : "7", "size" : 18},
-                        {"name" : "HTML", "id" : "3", "size" : 18, "state" : "mixed"},
+                        {"name" : "HTML", "id" : "3", "size" : 18},
                         {"name" : " HTML",   "id" : "4", "size" : 18}
                     ]
                 },
@@ -1165,7 +1193,7 @@ text {
                         {"name" : " JS",   "id" : "5"}
                     ]
                 },
-                {"name": "OriginD", "x": 450, "y": "300", "state": "http",
+                {"name": "OriginD", "x": 475, "y": "300", "state": "http",
                     "children" :  [
                         {"name" : " JS",   "id" : "6"}
                     ]
@@ -1174,7 +1202,7 @@ text {
             "links": [
                 {"fromResource": "1", "toResource":"4", "scheme":"http"},
                 {"fromResource": "2", "toResource":"3", "scheme":"http"},
-                {"fromResource": "3", "toResource":"6", "scheme":"http"},
+                {"fromResource": "3", "toResource":"6", "scheme":"http", "mixed":true},
                 {"fromResource": "4", "toResource":"5", "scheme":"http"},
                 {"fromResource": "7", "toResource":"6", "scheme":"http"}
             ]
